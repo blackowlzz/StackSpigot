@@ -126,7 +126,14 @@ public class ActivationRange {
 	 */
 	private static void activateChunkEntities(Chunk chunk) {
 		for (List<Entity> slice : chunk.entitySlices) {
-			for (Entity entity : slice) {
+			//StackSpigot-Code
+			int size = slice.size();
+			if (size == 0) {
+				continue;
+			}
+			//End-of-StackSpigot-Code
+			for (int index = 0; index < size; index++) {
+				Entity entity = slice.get(index);
 				if (MinecraftServer.currentTick > entity.activatedTick) {
 					if (entity.defaultActivationState) {
 						entity.activatedTick = MinecraftServer.currentTick;
