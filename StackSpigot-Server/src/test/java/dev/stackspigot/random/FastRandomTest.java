@@ -3,6 +3,7 @@ package dev.stackspigot.random;
 import org.junit.Assert;
 import org.junit.Test;
 
+//StackSpigot-Code
 public class FastRandomTest {
 
 	@Test
@@ -31,3 +32,4 @@ public class FastRandomTest {
 		}
 	}
 }
+//End-of-StackSpigot-Code

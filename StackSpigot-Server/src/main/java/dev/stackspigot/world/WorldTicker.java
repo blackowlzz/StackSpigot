@@ -18,8 +18,9 @@ public class WorldTicker implements Runnable {
 
 	public final WorldServer worldserver;
 	private final ResettableLatch latch = new ResettableLatch(StackSpigotConfig.trackingThreads);
-	// Reused every tick to avoid allocating a list per world
+	//StackSpigot-Code
 	private final List<NetworkManager> disabledFlushes = new ArrayList<>();
+	//End-of-StackSpigot-Code
 	
 	public WorldTicker(WorldServer worldServer) {
 		this.worldserver = worldServer;
@@ -80,10 +81,12 @@ public class WorldTicker implements Runnable {
 			try {
 				worldserver.getTracker().updatePlayers();
 			} finally {
+				//StackSpigot-Code
 				for (int i = 0; i < disabledFlushes.size(); i++) {
 					disabledFlushes.get(i).enableAutomaticFlush();
 				}
 				disabledFlushes.clear();
+				//End-of-StackSpigot-Code
 			}
 			// Tuinity end - controlled flush for entity tracker packets
 		}

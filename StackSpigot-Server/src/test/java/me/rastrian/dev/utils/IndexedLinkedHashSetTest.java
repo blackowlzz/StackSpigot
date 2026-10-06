@@ -6,6 +6,7 @@ import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
 
+//StackSpigot-Code
 public class IndexedLinkedHashSetTest {
 
 	@Test
@@ -13,7 +14,7 @@ public class IndexedLinkedHashSetTest {
 		IndexedLinkedHashSet<String> set = new IndexedLinkedHashSet<>();
 		set.add("a");
 		set.add("b");
-		set.add("a"); // duplicate
+		set.add("a");
 
 		Assert.assertEquals(2, set.size());
 		for (int i = 0; i < set.size(); i++) {
@@ -53,3 +54,4 @@ public class IndexedLinkedHashSetTest {
 		Assert.assertEquals("c", set.get(0));
 	}
 }
+//End-of-StackSpigot-Code

@@ -8,9 +8,7 @@ import net.minecraft.server.Packet;
 import net.minecraft.server.PacketDataSerializer;
 import net.minecraft.server.PacketListener;
 
-/**
- * Packets written through Spigot404Write must only reach the channel they were addressed to.
- */
+//StackSpigot-Code
 public class Spigot404WriteTest {
 
 	private static Packet<PacketListener> newPacket() {
@@ -58,3 +56,4 @@ public class Spigot404WriteTest {
 		Assert.assertNull(closed.readOutbound());
 	}
 }
+//End-of-StackSpigot-Code

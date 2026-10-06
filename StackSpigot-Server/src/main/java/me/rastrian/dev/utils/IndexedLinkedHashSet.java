@@ -44,6 +44,7 @@ public final class IndexedLinkedHashSet<E> implements Set<E> {
 		return list.get(index);
 	}
 
+	//StackSpigot-Code
 	@Override
 	public boolean removeAll(Collection<?> c) {
 		boolean modified = set.removeAll(c);
@@ -52,7 +53,9 @@ public final class IndexedLinkedHashSet<E> implements Set<E> {
 		}
 		return modified;
 	}
+	//End-of-StackSpigot-Code
 
+	//StackSpigot-Code
 	@Override
 	public boolean retainAll(Collection<?> c) {
 		boolean modified = set.retainAll(c);
@@ -61,6 +64,7 @@ public final class IndexedLinkedHashSet<E> implements Set<E> {
 		}
 		return modified;
 	}
+	//End-of-StackSpigot-Code
 
 	@Override
 	public boolean addAll(Collection<? extends E> c) {
@@ -73,7 +77,7 @@ public final class IndexedLinkedHashSet<E> implements Set<E> {
 		return modified;
 	}
 
-	// Backed by the same list as get(int) so that size() is always a valid bound for it
+	//StackSpigot-Code
 	@Override
 	public int size() {
 		return list.size();
@@ -83,6 +87,7 @@ public final class IndexedLinkedHashSet<E> implements Set<E> {
 	public boolean isEmpty() {
 		return list.isEmpty();
 	}
+	//End-of-StackSpigot-Code
 
 	@Override
 	public boolean contains(Object o) {

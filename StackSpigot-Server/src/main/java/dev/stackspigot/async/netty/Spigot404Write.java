@@ -9,18 +9,13 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import net.minecraft.server.Packet;
 
+//StackSpigot-Code
 public final class Spigot404Write {
 
     private Spigot404Write() {
     }
 
-    /**
-     * Writes and flushes a packet on the given channel. Netty already queues the
-     * write on the channel's own event loop when called from another thread, so
-     * the packet only ever reaches the channel it was addressed to.
-     */
     public static void writeThenFlush(Channel channel, Packet<?> value, GenericFutureListener<? extends Future<? super Void>>[] listener) {
-        // The player might leave right before the packet is sent
         if (channel == null || !channel.isActive()) {
             return;
         }
@@ -32,3 +27,4 @@ public final class Spigot404Write {
         future.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
     }
 }
+//End-of-StackSpigot-Code

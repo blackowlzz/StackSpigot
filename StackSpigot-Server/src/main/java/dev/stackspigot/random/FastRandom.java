@@ -33,13 +33,16 @@ public strictfp class FastRandom extends Random implements Cloneable {
 	 * @param seed the initial seed
 	 */
 	public FastRandom(long seed) {
+		//StackSpigot-Code
 		this.seed = nonZero(seed);
+		//End-of-StackSpigot-Code
 	}
 
-	// A xorshift generator that starts at zero never leaves it
+	//StackSpigot-Code
 	private static long nonZero(long seed) {
 		return seed == 0L ? 0x9E3779B97F4A7C15L : seed;
 	}
+	//End-of-StackSpigot-Code
 
 	/**
 	 * Returns the current state of the seed, can be used to clone the object
@@ -58,7 +61,9 @@ public strictfp class FastRandom extends Random implements Cloneable {
 	 * @param seed the new seed
 	 */
 	public synchronized void setSeed(long seed) {
+		//StackSpigot-Code
 		this.seed = nonZero(seed);
+		//End-of-StackSpigot-Code
 		super.setSeed(seed);
 	}
 

@@ -152,9 +152,11 @@ public class EntityTracker {
 		}
 	    // WindSpigot start
 		for (EntityPlayer player : MinecraftServer.getServer().getPlayerList().players) {
+			//StackSpigot-Code
 			if (player.playerConnection != null) {
 				player.playerConnection.sendQueuedPackets();
 			}
+			//End-of-StackSpigot-Code
 		}
         // WindSpigot end
 	}

@@ -27,8 +27,10 @@ Heavy work is moved off the main server thread (entity tracking, path searching,
 #### What other modifications does StackSpigot have?
 See the patches list below.
 
-## Credits
-StackSpigot is built on the work of many projects and developers. The full license text is in [LICENSE](LICENSE).
+## License
+StackSpigot is released under the GNU General Public License version 3, see [LICENSE](LICENSE). Copyright and the requirement to keep the `//StackSpigot-Code` and `//End-of-StackSpigot-Code` markers are described in [NOTICE.md](NOTICE.md).
+
+StackSpigot is built on the work of many projects and developers, credited in the patches list below.
 
 ## Patches
 **All credit goes to the people that made these patches.**<br>

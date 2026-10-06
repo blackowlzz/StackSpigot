@@ -23,9 +23,9 @@ public class AsyncEntityTracker extends EntityTracker {
 	
 	@Override
 	public void updatePlayers() {
+		//StackSpigot-Code
 		final IndexedLinkedHashSet<EntityTrackerEntry> entries = (IndexedLinkedHashSet<EntityTrackerEntry>) c;
 		final int size = entries.size();
-		// Read the config once so every worker uses the same stride, even if it is reloaded mid-tick
 		final int threads = Math.min(Math.max(1, StackSpigotConfig.trackingThreads), Math.max(1, size));
 
 		if (size > 0) {
@@ -58,12 +58,12 @@ public class AsyncEntityTracker extends EntityTracker {
 		}
 
 		for (EntityPlayer player : MinecraftServer.getServer().getPlayerList().players) {
-			// A player that is still logging in does not have a connection yet
 			PlayerConnection connection = player.playerConnection;
 			if (connection != null) {
 				connection.sendQueuedPackets();
 			}
 		}
+		//End-of-StackSpigot-Code
 	}
 
 	public static ExecutorService getExecutor() {

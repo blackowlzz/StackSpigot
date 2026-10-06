@@ -16,11 +16,11 @@ import net.minecraft.server.NetworkManager;
 import net.minecraft.server.Packet;
 
 public abstract class AsyncPacketThread {
+    //StackSpigot-Code
     private volatile boolean running = true;
 	private static final long SEC_IN_NANO = 1000000000;
 	private static final int TPS = Math.max(1, StackSpigotConfig.combatThreadTPS);
 	private static final long TICK_TIME = SEC_IN_NANO / TPS;
-	// If the thread falls further behind than this, drop the backlog instead of bursting to catch up
 	private static final long MAX_BEHIND = TICK_TIME * 5L;
     private Thread thread;
     protected Queue<Runnable> packets = new ConcurrentLinkedQueue<Runnable>();
@@ -38,7 +38,6 @@ public abstract class AsyncPacketThread {
     }
     
 
-    // Loops scanning for new packets to send at a fixed rate
 	public void loop() {
 
 		long nextTick = System.nanoTime();
@@ -47,7 +46,6 @@ public abstract class AsyncPacketThread {
 			long wait = nextTick - System.nanoTime();
 
 			if (wait > 0) {
-				// Sleeps with nanosecond precision instead of spinning on sub-millisecond waits
 				LockSupport.parkNanos(wait);
 				continue;
 			}
@@ -67,6 +65,8 @@ public abstract class AsyncPacketThread {
         this.running = false;
         LockSupport.unpark(this.thread);
     }
+
+    //End-of-StackSpigot-Code
 
     public abstract void run();
 
