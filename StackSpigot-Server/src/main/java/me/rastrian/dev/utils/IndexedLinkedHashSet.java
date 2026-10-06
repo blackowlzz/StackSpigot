@@ -46,18 +46,20 @@ public final class IndexedLinkedHashSet<E> implements Set<E> {
 
 	@Override
 	public boolean removeAll(Collection<?> c) {
-		if (set.removeAll(c)) {
-			return list.removeAll(c);
+		boolean modified = set.removeAll(c);
+		if (modified) {
+			list.removeAll(c);
 		}
-		return true;
+		return modified;
 	}
 
 	@Override
 	public boolean retainAll(Collection<?> c) {
-		if (set.retainAll(c)) {
-			return list.retainAll(c);
+		boolean modified = set.retainAll(c);
+		if (modified) {
+			list.retainAll(c);
 		}
-		return false;
+		return modified;
 	}
 
 	@Override
@@ -71,14 +73,15 @@ public final class IndexedLinkedHashSet<E> implements Set<E> {
 		return modified;
 	}
 
+	// Backed by the same list as get(int) so that size() is always a valid bound for it
 	@Override
 	public int size() {
-		return set.size();
+		return list.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		return set.isEmpty();
+		return list.isEmpty();
 	}
 
 	@Override
