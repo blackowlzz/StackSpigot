@@ -32,7 +32,6 @@ import com.mojang.authlib.minecraft.MinecraftSessionService;
 import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
 import com.windpvp.windspigot.WindSpigot;
 import com.windpvp.windspigot.config.WindSpigotConfig;
-import com.windpvp.windspigot.statistics.StatisticsClient;
 import com.windpvp.windspigot.world.WorldTickManager;
 
 import co.aikar.timings.SpigotTimings; // Spigot
@@ -620,12 +619,8 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
 
 	@Override
 	public void run() {
-		// Don't disable statistics if server failed to start
-		boolean disableStatistics = false;
 		try {
 			if (this.init()) {
-				//WindSpigot - statistics
-				disableStatistics = true;
 				// WindSpigot start - implement thread affinity
 				if (WindSpigotConfig.threadAffinity) {
 					LOGGER.info(" ");
@@ -770,27 +765,6 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
 				MinecraftServer.LOGGER.info("Released CPU " + lock.cpuId() + " from server usage.");
 			}
 			// WindSpigot end
-			// WindSpigot start - stop statistics connection
-			Thread statisticsThread = null;
-			if (disableStatistics) {
-				StatisticsClient client = this.getWindSpigot().getClient();
-				if (client != null && client.isConnected) {
-					Runnable runnable = (() -> {
-						try {
-							// Signal that there is one less server
-							client.sendMessage("removed server");
-							// This tells the server to stop listening for messages from this client
-							client.sendMessage(".");
-							client.stop();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					});
-					statisticsThread = new Thread(runnable);
-					statisticsThread.start();
-				}
-			}
-			// WindSpigot end
 			try {
 				org.spigotmc.WatchdogThread.doStop();
 				this.isStopped = true;
@@ -805,13 +779,6 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
 				}
 				// CraftBukkit end
 				this.z();
-			}
-			// WindSpigot - wait for statistics to finish stopping
-			try {
-				if (this.getWindSpigot().getClient().isConnected) {
-					statisticsThread.join(1500);
-				}
-			} catch (Throwable ignored) {
 			}
 		}
 

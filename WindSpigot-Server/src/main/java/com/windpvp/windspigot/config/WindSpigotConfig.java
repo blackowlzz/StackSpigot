@@ -128,7 +128,6 @@ public class WindSpigotConfig {
 		c.addComment("settings.command.ping.enable", "Enables the command \"/ping <player>\" which shows player ping. Users require the permission windspigot.command.ping");
 		c.addComment("settings.command.ping.self-ping-msg", "The message displayed for the /ping command");
 		c.addComment("settings.command.ping.other-ping-msg", "The message displayed for the /ping <player> command");
-		c.addComment("settings.statistics", "Enables WindSpigot statistics. This allows developers to see how many WindSpigot servers are running. \nThis has no performance impact and is completely anonymous, but you can opt out of this if you want.");
 		c.addComment("settings.hit-delay", "This sets the delay between player attacks, 20 is the default. Setting this to 0 allows for no hit delay.");
 		c.addComment("settings.potion-speed-offset", "This sets the speed offset of splash potions, 0 is the default speed. Setting this higher makes potions splash faster. \nThis config option accepts decimals.");
 		c.addComment("settings.show-player-ips", "Disabling this will prevent display of player ips in the console.");
@@ -305,12 +304,6 @@ public class WindSpigotConfig {
 		
 		pingSelfCmdString = getString("settings.command.ping.self-ping-msg", "&bYour ping: &3%ping%");
 		pingOtherCmdString = getString("settings.command.ping.other-ping-msg", "&3%player%'s &bping: &3%ping%");
-	}
-	
-	public static boolean statistics;
-	
-	private static void statistics() {
-		statistics = getBoolean("settings.statistics", true);
 	}
 	
 	public static int hitDelay;

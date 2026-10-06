@@ -1,18 +1,12 @@
 package com.windpvp.windspigot;
 
 import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bukkit.Bukkit;
 import org.bukkit.command.SimpleCommandMap;
 
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.windpvp.windspigot.async.AsyncUtil;
 import com.windpvp.windspigot.async.pathsearch.SearchHandler;
 import com.windpvp.windspigot.async.thread.CombatThread;
 import com.windpvp.windspigot.commands.KnockbackCommand;
@@ -23,7 +17,6 @@ import com.windpvp.windspigot.commands.SpawnMobCommand;
 import com.windpvp.windspigot.config.WindSpigotConfig;
 import com.windpvp.windspigot.protocol.MovementListener;
 import com.windpvp.windspigot.protocol.PacketListener;
-import com.windpvp.windspigot.statistics.StatisticsClient;
 
 import net.minecraft.server.MinecraftServer;
 import xyz.sculas.nacho.anticrash.AntiCrash;
@@ -31,26 +24,17 @@ import xyz.sculas.nacho.async.AsyncExplosions;
 
 public class WindSpigot {
 
-	private StatisticsClient client;
-	
 	public static final Logger LOGGER = LogManager.getLogger();
 	private static final Logger DEBUG_LOGGER = LogManager.getLogger();
 	private static WindSpigot INSTANCE;
 	
 	private CombatThread knockbackThread;
 	
-	private final Executor statisticsExecutor = Executors
-			.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("WindSpigot Statistics Thread")
-			.build());
-	
-	private volatile boolean statisticsEnabled = false;
-	
 	private final Set<PacketListener> packetListeners = Sets.newConcurrentHashSet();
 	private final Set<MovementListener> movementListeners = Sets.newConcurrentHashSet();
 
 	private WindSpigot() {
 		initCmds();
-		initStatistics();
 		
 		// We do not want to initialize this again after a reload
 		if (WindSpigotConfig.asyncPathSearches && SearchHandler.getInstance() == null) {
@@ -103,48 +87,12 @@ public class WindSpigot {
 		}
 	}
 
-	private void initStatistics() {
-		if (WindSpigotConfig.statistics && !statisticsEnabled) {
-			Runnable statisticsRunnable = (() -> {
-				client = new StatisticsClient();
-				try {
-					statisticsEnabled = true;
-
-					if (!client.isConnected) {
-						// Connect to the statistics server and notify that there is a new server
-						client.start("150.230.35.78", 500);
-						client.sendMessage("new server");
-
-						while (true) {
-							// Keep alive, this tells the statistics server that this server
-							// is still online
-							client.sendMessage("keep alive packet");
-
-							// Online players, this tells the statistics server how many players
-							// are on
-							client.sendMessage("player count packet " + Bukkit.getOnlinePlayers().size());
-
-							// Statistics are sent every 40 secs.
-							TimeUnit.SECONDS.sleep(40);
-						}
-
-					}
-				} catch (Exception ignored) {}
-			});
-			AsyncUtil.run(statisticsRunnable, statisticsExecutor);
-		}
-	}
-
 	public static void init() {
 		if (INSTANCE == null) {
 			INSTANCE = new WindSpigot();
 		}
 	}
 
-	public StatisticsClient getClient() {
-		return this.client;
-	}
-	
 	public CombatThread getKnockbackThread() {
 		return knockbackThread;
 	}
