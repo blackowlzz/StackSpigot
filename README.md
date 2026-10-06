@@ -24,6 +24,12 @@ Changes made on top of WindSpigot:
 - Removed the statistics client. WindSpigot sent the server count and player count to its own statistics server by default; StackSpigot makes no such connection and the `settings.statistics` option no longer exists.
 - Default knockback profile renamed to `stack`.
 
+**Compatibility**
+- Plugins built for WindSpigot keep working without recompiling: the `com.windpvp.windspigot` classes (`WindSpigot`, `PacketListener`, `MovementListener`, `PlayerIllegalBehaviourEvent`), `getWindSpigotConfig()` and `MinecraftServer.getWindSpigot()` are kept as deprecated shims.
+- The old `windspigot.command.*` permissions grant the new `stackspigot.command.*` ones.
+- An existing `windspigot.yml` is copied to `stackspigot.yml` on first start.
+- Plugins for Spigot, PaperSpigot, TacoSpigot and NachoSpigot 1.8.8 work as before. Plugins for newer Minecraft versions do not.
+
 **Fixes**
 - Async knockback could write packets to the wrong player. The packet queue was shared by all connections; each packet is now written only to its own channel.
 - The entity tracker threw a `NullPointerException` for players that were still logging in.
@@ -79,6 +85,7 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [StackSpigot-0010] Use copy-on-write sets for packet and movement listeners
 [StackSpigot-0011] Skip empty queued packet sends and use a lock-free queue
 [StackSpigot-0012] Skip empty entity slices in ActivationRange
+[StackSpigot-0013] Add WindSpigot plugin compatibility layer
 
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config
