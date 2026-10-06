@@ -1,12 +1,12 @@
 package dev.stackspigot;
 
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bukkit.command.SimpleCommandMap;
 
-import com.google.common.collect.Sets;
 import dev.stackspigot.async.pathsearch.SearchHandler;
 import dev.stackspigot.async.thread.CombatThread;
 import dev.stackspigot.commands.KnockbackCommand;
@@ -30,8 +30,10 @@ public class StackSpigot {
 	
 	private CombatThread knockbackThread;
 	
-	private final Set<PacketListener> packetListeners = Sets.newConcurrentHashSet();
-	private final Set<MovementListener> movementListeners = Sets.newConcurrentHashSet();
+	//StackSpigot-Code
+	private final Set<PacketListener> packetListeners = new CopyOnWriteArraySet<>();
+	private final Set<MovementListener> movementListeners = new CopyOnWriteArraySet<>();
+	//End-of-StackSpigot-Code
 
 	private StackSpigot() {
 		initCmds();
