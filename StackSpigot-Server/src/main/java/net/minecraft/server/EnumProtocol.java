@@ -248,7 +248,16 @@ public enum EnumProtocol {
 		return state >= e && state <= f ? g[state - e] : null;
 	}
 
+	//StackSpigot-Code
+	private static final ClassValue<EnumProtocol> PROTOCOL_BY_CLASS = new ClassValue<EnumProtocol>() {
+		@Override
+		protected EnumProtocol computeValue(Class<?> type) {
+			return h.get(type);
+		}
+	};
+
 	public static EnumProtocol getProtocolForPacket(Packet<?> packet) {
-		return h.get(packet.getClass());
+		return PROTOCOL_BY_CLASS.get(packet.getClass());
 	}
+	//End-of-StackSpigot-Code
 }
