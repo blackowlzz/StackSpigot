@@ -98,7 +98,9 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 	private boolean isExploiter = false;
 	
 	// WindSpigot - queue-able packets
-	private Queue<Packet<?>> queuedPackets = Queues.newLinkedBlockingQueue();
+	//StackSpigot-Code
+	private Queue<Packet<?>> queuedPackets = new java.util.concurrent.ConcurrentLinkedQueue<>();
+	//End-of-StackSpigot-Code
 
 	public PlayerConnection(MinecraftServer minecraftserver, NetworkManager networkmanager, EntityPlayer entityplayer) {
 		this.minecraftServer = minecraftserver;
@@ -2672,6 +2674,11 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 	}
 	
 	public void sendQueuedPackets() {
+		//StackSpigot-Code
+		if (queuedPackets.isEmpty()) {
+			return;
+		}
+		//End-of-StackSpigot-Code
 		networkManager.disableAutomaticFlush();
 		while (!queuedPackets.isEmpty()) {
 			sendPacket(queuedPackets.poll());
