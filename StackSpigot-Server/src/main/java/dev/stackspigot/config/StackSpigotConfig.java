@@ -38,6 +38,17 @@ public class StackSpigotConfig {
 
 	public static void init(File configFile) {
 		CONFIG_FILE = configFile;
+		//StackSpigot-Code
+		File legacyConfig = new File(configFile.getAbsoluteFile().getParentFile(), "windspigot.yml");
+		if (!configFile.exists() && legacyConfig.exists()) {
+			try {
+				java.nio.file.Files.copy(legacyConfig.toPath(), configFile.toPath());
+				LOGGER.info("Copied windspigot.yml to " + configFile.getName());
+			} catch (IOException ex) {
+				LOGGER.warn("Could not copy windspigot.yml to " + configFile.getName(), ex);
+			}
+		}
+		//End-of-StackSpigot-Code
 		config = new YamlConfiguration();
 		try {
 			StackSpigot.LOGGER.info("Loading StackSpigot config from " + configFile.getName());

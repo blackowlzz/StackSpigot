@@ -1709,6 +1709,13 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
 	public StackSpigot getStackSpigot() {
 		return StackSpigot.getInstance();
 	}
+
+	//StackSpigot-Code
+	@Deprecated
+	public com.windpvp.windspigot.WindSpigot getWindSpigot() {
+		return com.windpvp.windspigot.WindSpigot.getInstance();
+	}
+	//End-of-StackSpigot-Code
 	
 	// WindSpigot - MSPT (milliseconds per tick)
 	public double getLastMspt() {

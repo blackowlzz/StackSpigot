@@ -2294,8 +2294,18 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 			PlayerIllegalBehaviourEvent event = new PlayerIllegalBehaviourEvent(this.server.getPlayer(this.player),
 					PlayerIllegalBehaviourEvent.IllegalType.CREATIVE_ACTION_NOT_IN_CREATIVE);
 			this.server.getPluginManager().callEvent(event);
+			//StackSpigot-Code
+			boolean cancelled = event.isCancelled();
+			if (!cancelled) {
+				com.windpvp.windspigot.events.PlayerIllegalBehaviourEvent legacyEvent = new com.windpvp.windspigot.events.PlayerIllegalBehaviourEvent(
+						this.server.getPlayer(this.player),
+						com.windpvp.windspigot.events.PlayerIllegalBehaviourEvent.IllegalType.CREATIVE_ACTION_NOT_IN_CREATIVE);
+				this.server.getPluginManager().callEvent(legacyEvent);
+				cancelled = legacyEvent.isCancelled();
+			}
+			//End-of-StackSpigot-Code
 
-			if (!event.isCancelled()) {
+			if (!cancelled) {
 				this.disconnect("Perform a creative action not in creative");
 			}
 		}

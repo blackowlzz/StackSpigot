@@ -982,6 +982,13 @@ public interface Server extends PluginMessageRecipient {
 		public org.bukkit.configuration.file.YamlConfiguration getStackSpigotConfig() {
 			throw new UnsupportedOperationException("Not supported yet.");
 		}
+
+		//StackSpigot-Code
+		@Deprecated
+		public org.bukkit.configuration.file.YamlConfiguration getWindSpigotConfig() {
+			return getStackSpigotConfig();
+		}
+		//End-of-StackSpigot-Code
 		// WindSpigot end
 
 		/**

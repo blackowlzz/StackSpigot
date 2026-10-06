@@ -58,7 +58,24 @@ public class StackSpigot {
 		StackSpigot.init();
 	}
 
+	//StackSpigot-Code
+	private void registerLegacyPermissions() {
+		org.bukkit.plugin.PluginManager pluginManager = MinecraftServer.getServer().server.getPluginManager();
+		for (String node : new String[] { "mobai", "ping", "sms", "spawnmob", "knockback" }) {
+			String legacy = "windspigot.command." + node;
+			if (pluginManager.getPermission(legacy) == null) {
+				pluginManager.addPermission(new org.bukkit.permissions.Permission(legacy,
+						org.bukkit.permissions.PermissionDefault.OP,
+						java.util.Collections.singletonMap("stackspigot.command." + node, true)));
+			}
+		}
+	}
+	//End-of-StackSpigot-Code
+
 	private void initCmds() {
+		//StackSpigot-Code
+		registerLegacyPermissions();
+		//End-of-StackSpigot-Code
 		
 		SimpleCommandMap commandMap = MinecraftServer.getServer().server.getCommandMap();
 		
