@@ -2,7 +2,7 @@
 
 ##### StackSpigot is a performance-focused Minecraft 1.8.8 server software with improved PvP mechanics, forked from **[WindSpigot](https://github.com/Wind-Development/WindSpigot)**, itself a fork of **[NachoSpigot](https://github.com/Argarian-Network/NachoSpigot/tree/async-entity-tracker)**.
 
-**StackSpigot supports Java 11 to Java 25.**
+**StackSpigot is built and tested on Java 27. The Java 11 to 25 range supported by WindSpigot is expected to still apply.**
 
 ## Building
 StackSpigot is built with [Maven](https://maven.apache.org/):
@@ -15,6 +15,30 @@ The server jar is produced at `StackSpigot-Server/target/StackSpigot.jar` and th
 The main configuration file is `stackspigot.yml`, generated on first start. Use `--stackspigot-settings <file>` to point to a different file.
 
 Knockback can be configured in-game with the `/kb` command.
+
+## What StackSpigot changes
+Changes made on top of WindSpigot:
+
+**Project**
+- Renamed to StackSpigot: modules, jars, the `dev.stackspigot` package, `stackspigot.yml`, `stackspigot.command.*` permissions, server brand and version.
+- Removed the statistics client. WindSpigot sent the server count and player count to its own statistics server by default; StackSpigot makes no such connection and the `settings.statistics` option no longer exists.
+- Default knockback profile renamed to `stack`.
+
+**Fixes**
+- Async knockback could write packets to the wrong player. The packet queue was shared by all connections; each packet is now written only to its own channel.
+- The entity tracker threw a `NullPointerException` for players that were still logging in.
+- `IndexedLinkedHashSet` could report a size larger than its list, which caused hidden `IndexOutOfBoundsException` errors in the tracker threads. `removeAll` and `retainAll` now report whether the set changed.
+- `FastRandom` stayed at zero forever when seeded with 0.
+
+**Performance**
+- The combat packet thread no longer drains its queue in quadratic time, no longer spins on sub-millisecond waits, and survives a failing packet write.
+- The entity tracker reads the thread count once per tick, so a config reload cannot desynchronize its workers, and it does not schedule workers when nothing is tracked.
+- The world ticker reuses its flush list instead of allocating one per world per tick.
+
+**Dependencies**
+- Updated Maven plugins, Netty, commons-lang3, fastutil, log4j, snakeyaml, the SQLite and MySQL drivers and others. Mockito is test only and is no longer bundled in the server jar. Guava and Gson are kept in sync with Minecraft and were not changed.
+
+Code written for StackSpigot is marked with `//StackSpigot-Code` and `//End-of-StackSpigot-Code` comments, see [NOTICE.md](NOTICE.md).
 
 ## FAQ
 
@@ -38,6 +62,14 @@ StackSpigot is built on the work of many projects and developers, credited in th
 
 The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each patch was inherited from.
 ```
+[StackSpigot-0001] Remove statistics telemetry
+[StackSpigot-0002] Fix async knockback packets written to the wrong channel
+[StackSpigot-0003] Optimize the async combat packet thread
+[StackSpigot-0004] Fix async entity tracker edge cases
+[StackSpigot-0005] Reduce per-tick allocations in WorldTicker
+[StackSpigot-0006] Fix FastRandom zero seed
+[StackSpigot-0007] Update dependencies and build plugins
+
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config
 [WindSpigot-0003] Mob AI toggle command
