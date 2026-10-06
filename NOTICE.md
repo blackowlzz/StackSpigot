@@ -21,6 +21,3 @@ As an additional term under section 7(b) of the GNU General Public License
 version 3, these markers are a legal notice and an author attribution. They
 must be preserved, unchanged, in every copy and modified version of the marked
 code, in source form. Removing or altering them is not permitted.
-
-The original license texts in `LICENSE`, `StackSpigot-Server/LICENCE.txt`,
-`StackSpigot-Server/LGPL.txt` and `StackSpigot-API/LICENCE.txt` are unmodified.
