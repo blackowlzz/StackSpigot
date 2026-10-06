@@ -51,6 +51,18 @@ Changes made on top of WindSpigot:
 
 Code written for StackSpigot is marked with `//StackSpigot-Code` and `//End-of-StackSpigot-Code` comments, see [NOTICE.md](NOTICE.md).
 
+## Benchmarks
+StackSpigot against the WindSpigot it was forked from, 3 alternating runs each, 600 players online, default configuration, on the same machine (Java 27, 8 GB heap, Java Flight Recorder enabled on both):
+
+| | WindSpigot | StackSpigot | Change |
+|---|---|---|---|
+| Median tick | 5.11 ms | 3.69 ms | -28% |
+| Server CPU | 209% of a core | 192% of a core | -8% |
+| Memory allocated | 13.7 GB | 8.6 GB | -37% |
+| Total GC pause | 57 ms | 39 ms | -32% |
+
+Every StackSpigot run was better than every WindSpigot run on these four metrics. The players are bots that walk around, not a real server with plugins, so treat the numbers as indicative. In a 40 bot combat test CPU was the same. With `settings.async.knockback` enabled, WindSpigot delivered only about a tenth of the knockback packets to the players that were hit (about 100 against about 800 on StackSpigot) because of the shared packet queue that StackSpigot fixes.
+
 ## FAQ
 
 #### What combat mechanics are improved on?
