@@ -20,10 +20,13 @@ public final class Spigot404Write {
             return;
         }
 
-        ChannelFuture future = channel.writeAndFlush(value);
-        if (listener != null) {
-            future.addListeners(listener);
+        if (listener == null) {
+            channel.writeAndFlush(value, channel.voidPromise());
+            return;
         }
+
+        ChannelFuture future = channel.writeAndFlush(value);
+        future.addListeners(listener);
         future.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
     }
 }
