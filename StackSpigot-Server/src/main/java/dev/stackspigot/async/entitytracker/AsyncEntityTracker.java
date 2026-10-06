@@ -1,0 +1,59 @@
+package dev.stackspigot.async.entitytracker;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import dev.stackspigot.async.AsyncUtil;
+import dev.stackspigot.config.StackSpigotConfig;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import me.rastrian.dev.utils.IndexedLinkedHashSet;
+import net.minecraft.server.*;
+
+public class AsyncEntityTracker extends EntityTracker {
+	
+	private static final ExecutorService trackingThreadExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("StackSpigot Entity Tracker Thread").build());
+	private final WorldServer worldServer;	
+	
+	public AsyncEntityTracker(WorldServer worldserver) {
+		super(worldserver);
+		this.worldServer = worldserver;
+	}
+	
+	@Override
+	public void updatePlayers() {	
+		int offset = 0;
+		
+		for (int i = 1; i <= StackSpigotConfig.trackingThreads; i++) {
+			final int finalOffset = offset++;
+			
+			AsyncUtil.run(() -> {
+				try {
+					for (int index = finalOffset; index < c.size(); index += StackSpigotConfig.trackingThreads) {
+						try {
+	                    	((IndexedLinkedHashSet<EntityTrackerEntry>) c).get(index).update();
+						} catch (Throwable t) {
+							t.printStackTrace();
+						}
+					}
+				} finally {
+					worldServer.ticker.getLatch().decrement();
+				}
+			}, trackingThreadExecutor);
+			
+		}
+		try {
+            worldServer.ticker.getLatch().waitTillZero();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+	    worldServer.ticker.getLatch().reset();
+		for (EntityPlayer player : MinecraftServer.getServer().getPlayerList().players) {
+			player.playerConnection.sendQueuedPackets();
+		}
+	}
+
+	public static ExecutorService getExecutor() {
+		return trackingThreadExecutor;
+	}
+}

@@ -1,29 +1,40 @@
-# WindSpigot [![GitHub Workflow Status](https://github.com/Wind-Development/WindSpigot/actions/workflows/windspigot-build-and-upload.yml/badge.svg)](https://nightly.link/Wind-Development/WindSpigot/workflows/windspigot-build-and-upload/master/WindSpigot-server.zip) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/3c5ee8d2ef324d23ab085d89139ea0e7)](https://www.codacy.com/gh/Wind-Development/WindSpigot/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Wind-Development/WindSpigot&amp;utm_campaign=Badge_Grade) [![Discord](https://img.shields.io/discord/1318787858768597042?label=discord)](https://discord.gg/hqbJvQZpV2)
+# StackSpigot [![Build](https://github.com/blackowlzz/StackSpigot/actions/workflows/stackspigot-build-and-upload.yml/badge.svg)](https://github.com/blackowlzz/StackSpigot/actions/workflows/stackspigot-build-and-upload.yml)
 
-##### WindSpigot is a 1.8.8 Minecraft server software focused on improving overall server performance and pvp mechanics based on a **[fork of NachoSpigot](https://github.com/Argarian-Network/NachoSpigot/tree/async-entity-tracker)**.
+##### StackSpigot is a performance-focused Minecraft 1.8.8 server software with improved PvP mechanics, forked from **[WindSpigot](https://github.com/Wind-Development/WindSpigot)**, itself a fork of **[NachoSpigot](https://github.com/Argarian-Network/NachoSpigot/tree/async-entity-tracker)**.
 
-**WindSpigot supports Java 11 to Java 25!**
+**StackSpigot supports Java 11 to Java 25.**
 
-## Downloads
-See the **[releases](https://github.com/Wind-Development/WindSpigot/releases)** tab for the latest release.
+## Building
+StackSpigot is built with [Maven](https://maven.apache.org/):
+```
+mvn clean package
+```
+The server jar is produced at `StackSpigot-Server/target/StackSpigot.jar` and the API jar at `StackSpigot-API/target/StackSpigot-API.jar`.
+
+## Configuration
+The main configuration file is `stackspigot.yml`, generated on first start. Use `--stackspigot-settings <file>` to point to a different file.
+
+Knockback can be configured in-game with the `/kb` command.
 
 ## FAQ
 
 #### What combat mechanics are improved on?
-WindSpigot makes potion speed and hit delay configurable. We also have NachoSpigot's configurable knockback.
+Potion speed and hit delay are configurable, and knockback is fully configurable through profiles.
 
-#### How do I customize knockback?
-Knockback can be configured in-game with the /kb command. See the **[wiki](https://github.com/Wind-Development/WindSpigot/wiki/Knockback-Configuration)** for information on settings.
+#### What does StackSpigot do to improve overall performance?
+Heavy work is moved off the main server thread (entity tracking, path searching, explosions, ...) and the server load is split up.
 
-#### What does WindSpigot do to improve overall performance?
-WindSpigot moves heavy work off of the main server thread and splits up the server load.
-
-#### What other modifications does WindSpigot have?
+#### What other modifications does StackSpigot have?
 See the patches list below.
+
+## Credits
+StackSpigot is built on the work of many projects and developers. The full license text is in [LICENSE](LICENSE).
 
 ## Patches
 **All credit goes to the people that made these patches.**<br>
 *Give credit where credit is due!*
+
+The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each patch was inherited from.
 ```
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config

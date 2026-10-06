@@ -1,4 +1,4 @@
-name: WindSpigot PR Build
+name: StackSpigot PR Build
 
 on:
   pull_request:

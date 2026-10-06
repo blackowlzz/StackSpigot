@@ -11,7 +11,7 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **Bug on latest**
-Is the bug on the latest version of WindSpigot?
+Is the bug on the latest version of StackSpigot?
 
 **To Reproduce**
 Steps to reproduce the behavior:

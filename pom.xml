@@ -9,17 +9,17 @@
         <version>7</version>
     </parent>
 
-    <groupId>ga.windpvp.windspigot</groupId>
+    <groupId>dev.stackspigot</groupId>
     <artifactId>parent</artifactId>
     <version>dev-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>WindSpigot-Parent</name>
-    <description>Parent project for all WindSpigot modules.</description>
+    <name>StackSpigot-Parent</name>
+    <description>Parent project for all StackSpigot modules.</description>
 
     <modules>
-        <module>WindSpigot-Server</module>
-        <module>WindSpigot-API</module>
+        <module>StackSpigot-Server</module>
+        <module>StackSpigot-API</module>
     </modules>
 
     <build>
