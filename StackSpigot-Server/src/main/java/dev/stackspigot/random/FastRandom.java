@@ -33,7 +33,12 @@ public strictfp class FastRandom extends Random implements Cloneable {
 	 * @param seed the initial seed
 	 */
 	public FastRandom(long seed) {
-		this.seed = seed;
+		this.seed = nonZero(seed);
+	}
+
+	// A xorshift generator that starts at zero never leaves it
+	private static long nonZero(long seed) {
+		return seed == 0L ? 0x9E3779B97F4A7C15L : seed;
 	}
 
 	/**
@@ -53,7 +58,7 @@ public strictfp class FastRandom extends Random implements Cloneable {
 	 * @param seed the new seed
 	 */
 	public synchronized void setSeed(long seed) {
-		this.seed = seed;
+		this.seed = nonZero(seed);
 		super.setSeed(seed);
 	}
 

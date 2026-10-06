@@ -1,9 +1,9 @@
 package dev.stackspigot.world;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import dev.stackspigot.async.ResettableLatch;
-import dev.stackspigot.async.entitytracker.AsyncEntityTracker;
 import dev.stackspigot.config.StackSpigotConfig;
 
 import net.minecraft.server.CrashReport;
@@ -18,15 +18,11 @@ public class WorldTicker implements Runnable {
 
 	public final WorldServer worldserver;
 	private final ResettableLatch latch = new ResettableLatch(StackSpigotConfig.trackingThreads);
-	private final Runnable cachedUpdateTrackerTask;
-	protected volatile boolean hasTracked = false;
+	// Reused every tick to avoid allocating a list per world
+	private final List<NetworkManager> disabledFlushes = new ArrayList<>();
 	
 	public WorldTicker(WorldServer worldServer) {
 		this.worldserver = worldServer;
-		cachedUpdateTrackerTask = () -> {
-			hasTracked = true;
-			worldserver.getTracker().updatePlayers();
-		};
 	}
 
 	// This is mostly copied code from world ticking
@@ -74,8 +70,6 @@ public class WorldTicker implements Runnable {
 		if (MinecraftServer.getServer().getPlayerList().getPlayerCount() != 0) // Tuinity
 		{
 			// Tuinity start - controlled flush for entity tracker packets
-			List<NetworkManager> disabledFlushes = new java.util.ArrayList<>(
-					MinecraftServer.getServer().getPlayerList().getPlayerCount());
 			for (EntityPlayer player : MinecraftServer.getServer().getPlayerList().players) {
 				PlayerConnection connection = player.playerConnection;
 				if (connection != null) {
@@ -86,9 +80,10 @@ public class WorldTicker implements Runnable {
 			try {
 				worldserver.getTracker().updatePlayers();
 			} finally {
-				for (NetworkManager networkManager : disabledFlushes) {
-					networkManager.enableAutomaticFlush();
+				for (int i = 0; i < disabledFlushes.size(); i++) {
+					disabledFlushes.get(i).enableAutomaticFlush();
 				}
+				disabledFlushes.clear();
 			}
 			// Tuinity end - controlled flush for entity tracker packets
 		}
