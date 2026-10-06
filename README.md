@@ -1,4 +1,4 @@
-# StackSpigot [![Build](https://github.com/blackowlzz/StackSpigot/actions/workflows/stackspigot-build-and-upload.yml/badge.svg)](https://github.com/blackowlzz/StackSpigot/actions/workflows/stackspigot-build-and-upload.yml)
+# StackSpigot
 
 ##### StackSpigot is a performance-focused Minecraft 1.8.8 server software with improved PvP mechanics, forked from **[WindSpigot](https://github.com/Wind-Development/WindSpigot)**, itself a fork of **[NachoSpigot](https://github.com/Argarian-Network/NachoSpigot/tree/async-entity-tracker)**.
 
