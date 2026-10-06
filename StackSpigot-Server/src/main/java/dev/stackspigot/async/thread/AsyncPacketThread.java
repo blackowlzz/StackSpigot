@@ -7,6 +7,7 @@ import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.LockSupport;
 
 import dev.stackspigot.async.netty.Spigot404Write;
 import dev.stackspigot.config.StackSpigotConfig;
@@ -15,11 +16,12 @@ import net.minecraft.server.NetworkManager;
 import net.minecraft.server.Packet;
 
 public abstract class AsyncPacketThread {
-    private boolean running = true;
+    private volatile boolean running = true;
 	private static final long SEC_IN_NANO = 1000000000;
-	private static final int TPS = StackSpigotConfig.combatThreadTPS;
+	private static final int TPS = Math.max(1, StackSpigotConfig.combatThreadTPS);
 	private static final long TICK_TIME = SEC_IN_NANO / TPS;
-	private static final long MAX_CATCHUP_BUFFER = TICK_TIME * TPS * 60L;
+	// If the thread falls further behind than this, drop the backlog instead of bursting to catch up
+	private static final long MAX_BEHIND = TICK_TIME * 5L;
     private Thread thread;
     protected Queue<Runnable> packets = new ConcurrentLinkedQueue<Runnable>();
 
@@ -31,49 +33,40 @@ public abstract class AsyncPacketThread {
             	AsyncPacketThread.this.loop();
             }
         }, s);
+        this.thread.setDaemon(true);
         this.thread.start();
     }
     
 
-    // Loops scanning for new packets to send
+    // Loops scanning for new packets to send at a fixed rate
 	public void loop() {
 
-		long lastTick = System.nanoTime();
-		long catchupTime = 0L;
+		long nextTick = System.nanoTime();
 
 		while (this.running) {
-			long curTime = System.nanoTime();
-			long wait = TICK_TIME - (curTime - lastTick);
+			long wait = nextTick - System.nanoTime();
 
 			if (wait > 0) {
-				if (catchupTime < 2E6) {
-					wait += Math.abs(catchupTime);
-				} else if (wait < catchupTime) {
-					//catchupTime -= wait;
-					wait = 0;
-				} else {
-					wait -= catchupTime;
-					//catchupTime = 0;
-				}
-
-				try {
-					// Wait a bit before checking for new packets
-					Thread.sleep(wait / 1000000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-				//curTime = System.nanoTime();
-				catchupTime = 0L;
+				// Sleeps with nanosecond precision instead of spinning on sub-millisecond waits
+				LockSupport.parkNanos(wait);
 				continue;
 			}
 
-			catchupTime = Math.min(MAX_CATCHUP_BUFFER, catchupTime - wait);
-
 			// Handle packets
 			this.run();
-			lastTick = curTime;
+
+			nextTick += TICK_TIME;
+			long now = System.nanoTime();
+			if (now - nextTick > MAX_BEHIND) {
+				nextTick = now;
+			}
 		}
 	}
+
+    public void shutdown() {
+        this.running = false;
+        LockSupport.unpark(this.thread);
+    }
 
     public abstract void run();
 
