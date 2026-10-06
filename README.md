@@ -34,6 +34,11 @@ Changes made on top of WindSpigot:
 - The combat packet thread no longer drains its queue in quadratic time, no longer spins on sub-millisecond waits, and survives a failing packet write.
 - The entity tracker reads the thread count once per tick, so a config reload cannot desynchronize its workers, and it does not schedule workers when nothing is tracked.
 - The world ticker reuses its flush list instead of allocating one per world per tick.
+- Packet writes without listeners use Netty's void promise, which removes one promise and listener allocation per packet and cut sampled allocations by about a third in a 600 player test.
+- The protocol of a packet is looked up through a per class cache instead of a `HashMap` on every send.
+- Packet and movement listeners are kept in copy-on-write sets, so sending a packet no longer iterates a concurrent hash set.
+- Players with no queued packets are skipped when the entity tracker flushes, and the queue is lock-free.
+- Entity activation range skips empty entity slices and no longer allocates an iterator per slice.
 
 **Dependencies**
 - Updated Maven plugins, Netty, commons-lang3, fastutil, log4j, snakeyaml, the SQLite and MySQL drivers and others. Mockito is test only and is no longer bundled in the server jar. Guava and Gson are kept in sync with Minecraft and were not changed.
@@ -69,6 +74,11 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [StackSpigot-0005] Reduce per-tick allocations in WorldTicker
 [StackSpigot-0006] Fix FastRandom zero seed
 [StackSpigot-0007] Update dependencies and build plugins
+[StackSpigot-0008] Use the void promise for packet writes without listeners
+[StackSpigot-0009] Cache the protocol lookup per packet class
+[StackSpigot-0010] Use copy-on-write sets for packet and movement listeners
+[StackSpigot-0011] Skip empty queued packet sends and use a lock-free queue
+[StackSpigot-0012] Skip empty entity slices in ActivationRange
 
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config
