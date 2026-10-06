@@ -277,11 +277,9 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 			if (enumprotocol != enumprotocol1) {
 				this.setProtocol(enumprotocol);
 			}
-			ChannelFuture channelfuture = flush ? this.channel.writeAndFlush(packet) : this.channel.write(packet);
-			if (listeners != null) {
-				channelfuture.addListeners(listeners);
-			}
-			channelfuture.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+			//StackSpigot-Code
+			this.writePacket(packet, listeners, flush);
+			//End-of-StackSpigot-Code
 		} else {
 			// Tuinity start - optimise packets that are not flushed
 			Runnable choice1 = null;
@@ -296,11 +294,9 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 						this.setProtocol(enumprotocol);
 					}
 					try {
-						ChannelFuture channelfuture1 = this.channel.writeAndFlush(packet); // Tuinity - add flush parameter
-						if (listeners != null) {
-							channelfuture1.addListeners(listeners);
-						}
-						channelfuture1.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+						//StackSpigot-Code
+						this.writePacket(packet, listeners, true);
+						//End-of-StackSpigot-Code
 					} catch (Exception e) {
 						LOGGER.error("NetworkException: " + getPlayer(), e);
 						close(new ChatMessage("disconnect.genericReason", "Internal Exception: " + e.getMessage()));
@@ -314,15 +310,9 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 						this.setProtocol(enumprotocol);
 					}
 					try {
-						// Nacho - why not remove the check below if the check is done above? just code
-						// duplication...
-						// even IntelliJ screamed at me for doing leaving it like that :shrug:
-						ChannelFuture channelfuture1 = /* (flush) ? this.channel.writeAndFlush(packet) : */this.channel
-								.write(packet); // Nacho - see above // Tuinity - add flush parameter
-						if (listeners != null) {
-							channelfuture1.addListeners(listeners);
-						}
-						channelfuture1.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+						//StackSpigot-Code
+						this.writePacket(packet, listeners, false);
+						//End-of-StackSpigot-Code
 					} catch (Exception e) {
 						LOGGER.error("NetworkException: " + getPlayer(), e);
 						close(new ChatMessage("disconnect.genericReason", "Internal Exception: " + e.getMessage()));
@@ -334,6 +324,22 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 			// Tuinity end - optimise packets that are not flushed
 		}
 	}
+
+	//StackSpigot-Code
+	private void writePacket(Packet<?> packet, GenericFutureListener<? extends Future<? super Void>>[] listeners, boolean flush) {
+		if (listeners == null) {
+			if (flush) {
+				this.channel.writeAndFlush(packet, this.channel.voidPromise());
+			} else {
+				this.channel.write(packet, this.channel.voidPromise());
+			}
+			return;
+		}
+		ChannelFuture channelfuture = flush ? this.channel.writeAndFlush(packet) : this.channel.write(packet);
+		channelfuture.addListeners(listeners);
+		channelfuture.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+	}
+	//End-of-StackSpigot-Code
 
 	private void a(final Packet packet,
 			final GenericFutureListener<? extends Future<? super Void>>[] agenericfuturelistener) {
