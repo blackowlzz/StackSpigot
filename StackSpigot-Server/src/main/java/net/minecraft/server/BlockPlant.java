@@ -46,6 +46,9 @@ public class BlockPlant extends Block {
 
 	protected void e(World world, BlockPosition blockposition, IBlockData iblockdata) {
 		if (!this.f(world, blockposition, iblockdata)) {
+			//StackSpigot-Code
+			if (BlockPhysicsEvent.getHandlerList().getRegisteredListeners().length > 0) {
+			//End-of-StackSpigot-Code
 			// CraftBukkit Start
 			org.bukkit.block.Block block = world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(),
 					blockposition.getZ());
@@ -55,6 +58,9 @@ public class BlockPlant extends Block {
 			if (event.isCancelled()) {
 				return;
 			}
+			//StackSpigot-Code
+			}
+			//End-of-StackSpigot-Code
 			// CraftBukkit end
 			this.b(world, blockposition, iblockdata, 0);
 			world.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), 3);

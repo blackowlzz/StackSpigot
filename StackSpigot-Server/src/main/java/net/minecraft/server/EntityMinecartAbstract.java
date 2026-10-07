@@ -79,11 +79,11 @@ public abstract class EntityMinecartAbstract extends Entity implements INamableT
 
 	@Override
 	protected void h() {
-		this.datawatcher.a(17, new Integer(0));
-		this.datawatcher.a(18, new Integer(1));
-		this.datawatcher.a(19, new Float(0.0F));
-		this.datawatcher.a(20, new Integer(0));
-		this.datawatcher.a(21, new Integer(6));
+		this.datawatcher.a(17, Integer.valueOf(0));
+		this.datawatcher.a(18, Integer.valueOf(1));
+		this.datawatcher.a(19, Float.valueOf(0.0F));
+		this.datawatcher.a(20, Integer.valueOf(0));
+		this.datawatcher.a(21, Integer.valueOf(6));
 		this.datawatcher.a(22, Byte.valueOf((byte) 0));
 	}
 

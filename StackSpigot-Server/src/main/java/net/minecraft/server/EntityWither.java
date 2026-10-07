@@ -52,10 +52,10 @@ public class EntityWither extends EntityMonster implements IRangedEntity {
 	@Override
 	protected void h() {
 		super.h();
-		this.datawatcher.a(17, new Integer(0));
-		this.datawatcher.a(18, new Integer(0));
-		this.datawatcher.a(19, new Integer(0));
-		this.datawatcher.a(20, new Integer(0));
+		this.datawatcher.a(17, Integer.valueOf(0));
+		this.datawatcher.a(18, Integer.valueOf(0));
+		this.datawatcher.a(19, Integer.valueOf(0));
+		this.datawatcher.a(20, Integer.valueOf(0));
 	}
 
 	@Override

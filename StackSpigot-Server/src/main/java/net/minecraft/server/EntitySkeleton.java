@@ -36,7 +36,7 @@ public class EntitySkeleton extends EntityMonster implements IRangedEntity {
 	@Override
 	protected void h() {
 		super.h();
-		this.datawatcher.a(13, new Byte((byte) 0));
+		this.datawatcher.a(13, Byte.valueOf((byte) 0));
 	}
 
 	@Override

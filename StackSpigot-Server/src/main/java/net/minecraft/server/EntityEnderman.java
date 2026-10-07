@@ -60,9 +60,9 @@ public class EntityEnderman extends EntityMonster {
 	@Override
 	protected void h() {
 		super.h();
-		this.datawatcher.a(16, new Short((short) 0));
-		this.datawatcher.a(17, new Byte((byte) 0));
-		this.datawatcher.a(18, new Byte((byte) 0));
+		this.datawatcher.a(16, Short.valueOf((short) 0));
+		this.datawatcher.a(17, Byte.valueOf((byte) 0));
+		this.datawatcher.a(18, Byte.valueOf((byte) 0));
 	}
 
 	@Override

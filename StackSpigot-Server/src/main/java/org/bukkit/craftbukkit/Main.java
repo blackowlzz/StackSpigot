@@ -22,6 +22,8 @@ public class Main {
 
 	public static void main(String[] args) {
 		System.setProperty("log4j2.formatMsgNoLookups", "true");
+		// PandaSpigot - cap the per-thread JDK NIO direct buffer cache (Aikar), see https://www.evanjones.ca/java-bytebuffer-leak.html
+		if (System.getProperty("jdk.nio.maxCachedBufferSize") == null) System.setProperty("jdk.nio.maxCachedBufferSize", "262144");
 		try {
 			if (!SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_17)) {
 				System.err.println("It seems like you are not using Java 17!");

@@ -147,6 +147,16 @@ public class PacketDataSerializer extends ByteBuf {
     public void writeVarInt(int value) { this.b(value); } // Nacho - OBFHELPER
 
     public void b(int i) {
+        // PandaSpigot start - Optimize VarInt writing, one and two byte VarInts are by far the most common
+        if ((i & (0xFFFFFFFF << 7)) == 0) {
+            this.writeByte(i);
+            return;
+        } else if ((i & (0xFFFFFFFF << 14)) == 0) {
+            this.writeShort((i & 0x7F | 0x80) << 8 | (i >>> 7));
+            return;
+        }
+        // PandaSpigot end
+
         while ((i & -128) != 0) {
             this.writeByte(i & 127 | 128);
             i >>>= 7;
@@ -261,15 +271,17 @@ public class PacketDataSerializer extends ByteBuf {
     }
 
     public PacketDataSerializer a(String s) {
-        byte[] abyte = s.getBytes(Charsets.UTF_8);
+        // PandaSpigot start - Optimize string writing, no intermediate byte array
+        int utf8Bytes = io.netty.buffer.ByteBufUtil.utf8Bytes(s);
 
-        if (abyte.length > 32767) {
+        if (utf8Bytes > 32767) {
             throw new EncoderException("String too big (was " + s.length() + " bytes encoded, max " + 32767 + ")");
         } else {
-            this.b(abyte.length);
-            this.writeBytes(abyte);
+            this.b(utf8Bytes);
+            this.writeCharSequence(s, Charsets.UTF_8);
             return this;
         }
+        // PandaSpigot end
     }
 
     public int capacity() {
