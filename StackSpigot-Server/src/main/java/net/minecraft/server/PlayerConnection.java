@@ -1167,6 +1167,16 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 	}
 
 	public void sendPacket(final Packet packet) {
+		//StackSpigot-Code
+		this.sendPacket(packet, null);
+	}
+
+	/**
+	 * Runs every check of {@link #sendPacket(Packet)}. When {@code batch} is not null the packet is added to it
+	 * instead of being handed to the network manager, so the caller can write several packets with one flush.
+	 */
+	private void sendPacket(final Packet packet, final java.util.List<Packet<?>> batch) {
+		//End-of-StackSpigot-Code
 		if (packet instanceof PacketPlayOutChat) {
 			PacketPlayOutChat packetplayoutchat = (PacketPlayOutChat) packet;
 			EntityHuman.EnumChatVisibility flags = this.player.getChatFlags();
@@ -1200,7 +1210,13 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 					e.printStackTrace();
 				}
 			}
-			this.networkManager.handle(packet);
+			//StackSpigot-Code
+			if (batch != null) {
+				batch.add(packet);
+			} else {
+				this.networkManager.handle(packet);
+			}
+			//End-of-StackSpigot-Code
 		} catch (Throwable throwable) {
 			CrashReport crashreport = CrashReport.a(throwable, "Sending packet");
 			CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Packet being sent");
@@ -2688,12 +2704,17 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 		if (queuedPackets.isEmpty()) {
 			return;
 		}
-		//End-of-StackSpigot-Code
-		networkManager.disableAutomaticFlush();
-		while (!queuedPackets.isEmpty()) {
-			sendPacket(queuedPackets.poll());
+		// Write everything queued by the entity tracker with a single task and a single flush
+		// instead of one task and one flush per packet
+		final java.util.List<Packet<?>> batch = new java.util.ArrayList<>();
+		Packet<?> queued;
+		while ((queued = queuedPackets.poll()) != null) {
+			sendPacket(queued, batch);
 		}
-		networkManager.enableAutomaticFlush();
+		if (!batch.isEmpty()) {
+			networkManager.handleBatch(batch);
+		}
+		//End-of-StackSpigot-Code
 	}
 	// WindSpigot end
 

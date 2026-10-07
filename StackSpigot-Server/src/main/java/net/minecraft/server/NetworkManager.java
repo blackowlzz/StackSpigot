@@ -239,6 +239,75 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 
 	}
 
+	//StackSpigot-Code
+	/**
+	 * Sends several packets that already went through {@link PlayerConnection#sendPacket(Packet)}.
+	 * Behaves like calling {@link #handle(Packet)} for each of them, except that all the writes run in one
+	 * event loop task and are followed by a single flush.
+	 */
+	public void handleBatch(java.util.List<Packet<?>> packets) {
+		if (!this.isConnected()) {
+			for (int i = 0; i < packets.size(); i++) {
+				this.i.add(new NetworkManager.QueuedPacket(packets.get(i)));
+			}
+			return;
+		}
+		this.sendPacketQueue();
+
+		final java.util.List<Packet<?>> toWrite = new java.util.ArrayList<>(packets.size());
+		final EnumProtocol current = this.channel.attr(NetworkManager.ATTRIBUTE_PROTOCOL).get();
+		boolean sameProtocol = true;
+		for (int i = 0; i < packets.size(); i++) {
+			Packet<?> packet = packets.get(i);
+			// Same async knockback handling as handle()
+			if (!shouldCheckPacket) {
+				if (this.packetWrites.get() + toWrite.size() > 5) {
+					shouldCheckPacket = true;
+				}
+			} else if (StackSpigotConfig.asyncKnockback && (packet instanceof PacketPlayOutEntityVelocity
+					|| packet instanceof PacketPlayOutPosition || packet instanceof PacketPlayInFlying.PacketPlayInPosition
+					|| packet instanceof PacketPlayInFlying)) {
+				StackSpigot.getInstance().getKnockbackThread().addPacket(packet, this, null);
+				continue;
+			}
+			if (EnumProtocol.getProtocolForPacket(packet) != current) {
+				sameProtocol = false;
+			}
+			toWrite.add(packet);
+		}
+		if (toWrite.isEmpty()) {
+			return;
+		}
+
+		if (!sameProtocol) {
+			// A protocol switch needs the regular per packet path
+			for (int i = 0; i < toWrite.size(); i++) {
+				this.dispatchPacket(toWrite.get(i), null, Boolean.TRUE);
+			}
+			return;
+		}
+
+		this.packetWrites.addAndGet(toWrite.size());
+		final Channel channel = this.channel;
+		Runnable writer = () -> {
+			try {
+				for (int i = 0; i < toWrite.size(); i++) {
+					channel.write(toWrite.get(i), channel.voidPromise());
+				}
+				channel.flush();
+			} catch (Exception e) {
+				LOGGER.error("NetworkException: " + getPlayer(), e);
+				close(new ChatMessage("disconnect.genericReason", "Internal Exception: " + e.getMessage()));
+			}
+		};
+		if (channel.eventLoop().inEventLoop()) {
+			writer.run();
+		} else {
+			channel.eventLoop().execute(writer);
+		}
+	}
+	//End-of-StackSpigot-Code
+
 	// sendPacket
 	public void a(Packet packet, GenericFutureListener<? extends Future<? super Void>> listener,
 			GenericFutureListener<? extends Future<? super Void>>... listeners) {
