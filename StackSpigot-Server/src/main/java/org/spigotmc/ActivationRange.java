@@ -86,6 +86,7 @@ public class ActivationRange {
 	 */
 	public static void activateEntities(World world) {
 		SpigotTimings.entityActivationCheckTimer.startTiming();
+		//StackSpigot-Code
 		final int miscActivationRange = world.spigotConfig.miscActivationRange;
 		final int animalActivationRange = world.spigotConfig.animalActivationRange;
 		final int monsterActivationRange = world.spigotConfig.monsterActivationRange;
@@ -94,44 +95,131 @@ public class ActivationRange {
 		maxRange = Math.max(maxRange, miscActivationRange);
 		maxRange = Math.min((world.spigotConfig.viewDistance << 4) - 8, maxRange);
 
-		for (Entity player : (List<Entity>) (List) world.players) {
+		final List<Entity> players = (List<Entity>) (List) world.players;
+		final int count = players.size();
+		if (count == 0) {
+			SpigotTimings.entityActivationCheckTimer.stopTiming();
+			return;
+		}
+		ensureCapacity(count);
 
+		groupIndex.clear();
+		int groups = 0;
+		for (int p = 0; p < count; p++) {
+			Entity player = players.get(p);
 			player.activatedTick = MinecraftServer.currentTick;
-			maxBB = player.getBoundingBox().grow(maxRange, 256, maxRange);
-			miscBB = player.getBoundingBox().grow(miscActivationRange, 256, miscActivationRange);
-			animalBB = player.getBoundingBox().grow(animalActivationRange, 256, animalActivationRange);
-			monsterBB = player.getBoundingBox().grow(monsterActivationRange, 256, monsterActivationRange);
+			AxisAlignedBB max = player.getBoundingBox().grow(maxRange, 256, maxRange);
+			miscBoxes[p] = player.getBoundingBox().grow(miscActivationRange, 256, miscActivationRange);
+			animalBoxes[p] = player.getBoundingBox().grow(animalActivationRange, 256, animalActivationRange);
+			monsterBoxes[p] = player.getBoundingBox().grow(monsterActivationRange, 256, monsterActivationRange);
 
-			int i = MathHelper.floor(maxBB.a / 16.0D);
-			int j = MathHelper.floor(maxBB.d / 16.0D);
-			int k = MathHelper.floor(maxBB.c / 16.0D);
-			int l = MathHelper.floor(maxBB.f / 16.0D);
+			int i = MathHelper.floor(max.a / 16.0D);
+			int j = MathHelper.floor(max.d / 16.0D);
+			int k = MathHelper.floor(max.c / 16.0D);
+			int l = MathHelper.floor(max.f / 16.0D);
 
-			for (int i1 = i; i1 <= j; ++i1) {
-				for (int j1 = k; j1 <= l; ++j1) {
+			long key;
+			int dx = j - i;
+			int dz = l - k;
+			if (i >= -MAX_PACKED && i < MAX_PACKED && k >= -MAX_PACKED && k < MAX_PACKED && dx >= 0 && dx < 256
+					&& dz >= 0 && dz < 256) {
+				key = (i & 0x3FFFFFL) | ((k & 0x3FFFFFL) << 22) | ((long) dx << 44) | ((long) dz << 52);
+			} else {
+				key = Long.MIN_VALUE | p;
+			}
+			int group = groupIndex.get(key);
+			if (group < 0) {
+				group = groups++;
+				groupIndex.put(key, group);
+				groupMinX[group] = i;
+				groupMaxX[group] = j;
+				groupMinZ[group] = k;
+				groupMaxZ[group] = l;
+				groupSize[group] = 0;
+			}
+			playerGroup[p] = group;
+			groupSize[group]++;
+		}
+
+		int offset = 0;
+		for (int g = 0; g < groups; g++) {
+			groupStart[g] = offset;
+			offset += groupSize[g];
+			groupSize[g] = 0;
+		}
+		for (int p = 0; p < count; p++) {
+			int g = playerGroup[p];
+			members[groupStart[g] + groupSize[g]++] = p;
+		}
+
+		for (int g = 0; g < groups; g++) {
+			final int from = groupStart[g];
+			final int to = from + groupSize[g];
+			for (int i1 = groupMinX[g]; i1 <= groupMaxX[g]; ++i1) {
+				for (int j1 = groupMinZ[g]; j1 <= groupMaxZ[g]; ++j1) {
 					Chunk chunk = world.getChunkIfLoaded(i1, j1);
 					if (chunk != null) {
-						activateChunkEntities(chunk);
+						activateChunkEntities(chunk, from, to);
 					}
 				}
 			}
 		}
+		for (int p = 0; p < count; p++) {
+			miscBoxes[p] = null;
+			animalBoxes[p] = null;
+			monsterBoxes[p] = null;
+		}
+		//End-of-StackSpigot-Code
 		SpigotTimings.entityActivationCheckTimer.stopTiming();
 	}
 
-	/**
-	 * Checks for the activation state of all entities in this chunk.
-	 *
-	 * @param chunk
-	 */
-	private static void activateChunkEntities(Chunk chunk) {
+	//StackSpigot-Code
+	private static final int MAX_PACKED = 1 << 21;
+	private static final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap groupIndex = newGroupIndex();
+	private static AxisAlignedBB[] miscBoxes = new AxisAlignedBB[0];
+	private static AxisAlignedBB[] animalBoxes = new AxisAlignedBB[0];
+	private static AxisAlignedBB[] monsterBoxes = new AxisAlignedBB[0];
+	private static int[] playerGroup = new int[0];
+	private static int[] members = new int[0];
+	private static int[] groupMinX = new int[0];
+	private static int[] groupMaxX = new int[0];
+	private static int[] groupMinZ = new int[0];
+	private static int[] groupMaxZ = new int[0];
+	private static int[] groupStart = new int[0];
+	private static int[] groupSize = new int[0];
+
+	private static it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap newGroupIndex() {
+		it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap map = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+		map.defaultReturnValue(-1);
+		return map;
+	}
+
+	private static void ensureCapacity(int count) {
+		if (playerGroup.length >= count) {
+			return;
+		}
+		int size = Math.max(count, playerGroup.length * 2);
+		miscBoxes = new AxisAlignedBB[size];
+		animalBoxes = new AxisAlignedBB[size];
+		monsterBoxes = new AxisAlignedBB[size];
+		playerGroup = new int[size];
+		members = new int[size];
+		groupMinX = new int[size];
+		groupMaxX = new int[size];
+		groupMinZ = new int[size];
+		groupMaxZ = new int[size];
+		groupStart = new int[size];
+		groupSize = new int[size];
+	}
+	//End-of-StackSpigot-Code
+
+	//StackSpigot-Code
+	private static void activateChunkEntities(Chunk chunk, int from, int to) {
 		for (List<Entity> slice : chunk.entitySlices) {
-			//StackSpigot-Code
 			int size = slice.size();
 			if (size == 0) {
 				continue;
 			}
-			//End-of-StackSpigot-Code
 			for (int index = 0; index < size; index++) {
 				Entity entity = slice.get(index);
 				if (MinecraftServer.currentTick > entity.activatedTick) {
@@ -139,27 +227,30 @@ public class ActivationRange {
 						entity.activatedTick = MinecraftServer.currentTick;
 						continue;
 					}
+					AxisAlignedBB[] boxes;
 					switch (entity.activationType) {
 					case 1:
-						if (monsterBB.b(entity.getBoundingBox())) {
-							entity.activatedTick = MinecraftServer.currentTick;
-						}
+						boxes = monsterBoxes;
 						break;
 					case 2:
-						if (animalBB.b(entity.getBoundingBox())) {
-							entity.activatedTick = MinecraftServer.currentTick;
-						}
+						boxes = animalBoxes;
 						break;
 					case 3:
 					default:
-						if (miscBB.b(entity.getBoundingBox())) {
+						boxes = miscBoxes;
+					}
+					AxisAlignedBB entityBox = entity.getBoundingBox();
+					for (int m = from; m < to; m++) {
+						if (boxes[members[m]].b(entityBox)) {
 							entity.activatedTick = MinecraftServer.currentTick;
+							break;
 						}
 					}
 				}
 			}
 		}
 	}
+	//End-of-StackSpigot-Code
 
 	/**
 	 * If an entity is not in range, do some more checks to see if we should give it
