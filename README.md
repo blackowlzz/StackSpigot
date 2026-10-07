@@ -52,6 +52,7 @@ Changes made on top of WindSpigot:
 - The packets queued by the entity tracker are written with one event loop task and one flush per connection instead of one task and one flush per packet. With a few hundred moving players this stops millions of pending write tasks from piling up in the Netty event loops (about 830 MB of live heap and 1.2 s of GC pauses in a 200 bot test, against about 90 MB and 40 ms) and lowered server CPU by about a third. Each connection keeps its own queue and channel, and the plugin packet listeners and the async knockback handling run exactly as before.
 - The ProtocolSupport check that every packet serializer made against the plugin manager (a synchronized lookup that built new strings each time) is cached and refreshed once per second. In an 11 run comparison at 600 bots this lowered the memory allocated from about 8.8 GB to about 5.4 GB, the peak resident memory by about 11 to 17%, and the server CPU from about 142% to about 125% of a core. The median tick reported by `/tps` was about 0.5 ms higher in every one of those runs (about 3.4 ms against 2.9 ms), and the cause was not found.
 - Entity activation visits every chunk once per group of players that share the same chunk range, instead of once per player. The set of activated entities is the same (a test compares it with the previous algorithm on 300 random worlds). With 600 players standing at the same spot the median tick measured inside the server went from 3.16 ms to 2.40 ms in 3 runs of 800 ticks. Players that are far apart from each other gain little.
+- The packets queued by the entity tracker are taken from the queue and written by the Netty event loop of each connection, so the main thread no longer touches them. This only applies while no packet listener overrides `onSentPacket` (the built in anti crash listener does not); otherwise the previous path is used. With 600 players the tick measured inside the server went from a median of 2.18 ms to 1.94 ms, from 7.26 ms to 3.24 ms at the 90th percentile and from 18.39 ms to 7.43 ms at the 99th, in 4 runs of about 800 ticks each, with the same CPU use (about 106% of a core in both).
 
 **Dependencies**
 - Updated Maven plugins, Netty, commons-lang3, fastutil, log4j, snakeyaml, the SQLite and MySQL drivers and others. Mockito is test only and is no longer bundled in the server jar. Guava and Gson are kept in sync with Minecraft and were not changed.
@@ -109,6 +110,7 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [StackSpigot-0015] Write the queued entity tracker packets with one task and one flush per connection
 [StackSpigot-0016] Cache the ProtocolSupport lookup of the packet serializer
 [StackSpigot-0017] Group players with the same chunk range in the entity activation check
+[StackSpigot-0018] Let the Netty event loop drain the packets queued by the entity tracker
 
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config

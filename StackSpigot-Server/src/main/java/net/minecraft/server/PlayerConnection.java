@@ -2695,10 +2695,38 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 		queuedPackets.add(packet);
 	}
 	
+	//StackSpigot-Code
+	private final java.util.concurrent.atomic.AtomicBoolean drainScheduled = new java.util.concurrent.atomic.AtomicBoolean();
+	private final Runnable queueDrain = this::drainQueuedPackets;
+
+	private void drainQueuedPackets() {
+		drainScheduled.set(false);
+		final java.util.List<Packet<?>> batch = new java.util.ArrayList<>();
+		Packet<?> queued;
+		while ((queued = queuedPackets.poll()) != null) {
+			batch.add(queued);
+		}
+		if (!batch.isEmpty()) {
+			networkManager.handleBatch(batch);
+		}
+	}
+
 	public void sendQueuedPackets() {
-		//StackSpigot-Code
 		if (queuedPackets.isEmpty()) {
 			return;
+		}
+		final io.netty.channel.Channel channel = networkManager.channel;
+		if (channel != null && !processedDisconnect && networkManager.isConnected()
+				&& !dev.stackspigot.protocol.PacketListener.anyOverridesSentPacket(StackSpigot.getInstance().getPacketListeners())) {
+			if (!drainScheduled.compareAndSet(false, true)) {
+				return;
+			}
+			try {
+				channel.eventLoop().execute(queueDrain);
+				return;
+			} catch (java.util.concurrent.RejectedExecutionException e) {
+				drainScheduled.set(false);
+			}
 		}
 		final java.util.List<Packet<?>> batch = new java.util.ArrayList<>();
 		Packet<?> queued;
