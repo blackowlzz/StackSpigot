@@ -240,11 +240,6 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 	}
 
 	//StackSpigot-Code
-	/**
-	 * Sends several packets that already went through {@link PlayerConnection#sendPacket(Packet)}.
-	 * Behaves like calling {@link #handle(Packet)} for each of them, except that all the writes run in one
-	 * event loop task and are followed by a single flush.
-	 */
 	public void handleBatch(java.util.List<Packet<?>> packets) {
 		if (!this.isConnected()) {
 			for (int i = 0; i < packets.size(); i++) {
