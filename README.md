@@ -45,6 +45,11 @@ Changes made on top of WindSpigot:
 - Packet and movement listeners are kept in copy-on-write sets, so sending a packet no longer iterates a concurrent hash set.
 - Players with no queued packets are skipped when the entity tracker flushes, and the queue is lock-free.
 - Entity activation range skips empty entity slices and no longer allocates an iterator per slice.
+- `BlockPhysicsEvent` is only built and dispatched when a plugin listens to it, which removes an event and a block wrapper allocation from every block update on servers without such a plugin.
+- VarInts are written with a fast path for the one and two byte case, and strings are written without an intermediate byte array. Both produce the same bytes as before.
+- The per thread JDK NIO buffer cache is capped at 256 KiB (`jdk.nio.maxCachedBufferSize`, only if not already set), which stops long lived direct buffers from piling up native memory.
+- Entity data watchers are initialized with `valueOf` instead of the deprecated boxing constructors.
+- The packets queued by the entity tracker are written with one event loop task and one flush per connection instead of one task and one flush per packet. With a few hundred moving players this stops millions of pending write tasks from piling up in the Netty event loops (about 830 MB of live heap and 1.2 s of GC pauses in a 200 bot test, against about 90 MB and 40 ms) and lowered server CPU by about a third. Each connection keeps its own queue and channel, and the plugin packet listeners and the async knockback handling run exactly as before.
 
 **Dependencies**
 - Updated Maven plugins, Netty, commons-lang3, fastutil, log4j, snakeyaml, the SQLite and MySQL drivers and others. Mockito is test only and is no longer bundled in the server jar. Guava and Gson are kept in sync with Minecraft and were not changed.
@@ -98,6 +103,8 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [StackSpigot-0011] Skip empty queued packet sends and use a lock-free queue
 [StackSpigot-0012] Skip empty entity slices in ActivationRange
 [StackSpigot-0013] Add WindSpigot plugin compatibility layer
+[StackSpigot-0014] Only dispatch BlockPhysicsEvent when a plugin listens to it
+[StackSpigot-0015] Write the queued entity tracker packets with one task and one flush per connection
 
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config
@@ -124,6 +131,11 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [PandaSpigot-0107] Fix GH-276: Item durability desync when some events are cancelled
 [PandaSpigot-0031] Add missing InventoryView.getSlotType API
 [PandaSpigot-0104] Backport modern tick loop system
+[PandaSpigot-0018] Set cap on JDK per-thread native byte buffer cache (by Aikar)
+[PandaSpigot-0034] Optimize VarInt reading and writing (writing only, technique from Velocity)
+[PandaSpigot-0035] Various micro-optimizations for PacketDataSerializer (string writing)
+[PandaSpigot-0043] Only process BlockPhysicsEvent if a plugin has a listener (by Aikar, originally from PaperSpigot)
+[PandaSpigot-0133] use valueOf in DataWatcher (by MasterDash5)
 
 [Spigot-0097] Remove DataWatcher Locking by spottedleaf
 [Spigot-0138] Branchless NibbleArray by md5
@@ -303,6 +315,7 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [FalchusSpigot-????] Fix view distance lookup
 [FalchusSpigot-????] Only send Dragon/Wither Death sounds to same world
 [FalchusSpigot-????] Improve NetworkManager
+[FalchusSpigot-????] Add FastNetworkManager (batched packet writes, the idea behind StackSpigot-0015)
 
 [DashSpigot-0033] Fix SPIGOT-1746: Tile entities may not always tick
 [DashSpigot-0011] Fix MC-94186: Dragon egg falling in lazy chunks
