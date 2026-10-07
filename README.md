@@ -60,16 +60,19 @@ Changes made on top of WindSpigot:
 Code written for StackSpigot is marked with `//StackSpigot-Code` and `//End-of-StackSpigot-Code` comments, see [NOTICE.md](NOTICE.md).
 
 ## Benchmarks
-StackSpigot against the WindSpigot it was forked from, 3 alternating runs each, 600 players online, default configuration, on the same machine (Java 27, 8 GB heap, Java Flight Recorder enabled on both):
+StackSpigot against the WindSpigot it was forked from (commit 283c604) and against the latest WindSpigot (commit 088e94b), 3 alternating runs each, 600 players online, default configuration, no plugins other than a small test plugin, on the same machine (Java 27, 8 GB heap, Java Flight Recorder enabled on all of them). The tick times are measured inside the server (`ServerTickEndEvent`) over the 40 seconds after all players joined, about 800 ticks per run.
 
-| | WindSpigot | StackSpigot | Change |
+| | WindSpigot 283c604 | WindSpigot 088e94b | StackSpigot |
 |---|---|---|---|
-| Median tick | 5.11 ms | 3.69 ms | -28% |
-| Server CPU | 209% of a core | 192% of a core | -8% |
-| Memory allocated | 13.7 GB | 8.6 GB | -37% |
-| Total GC pause | 57 ms | 39 ms | -32% |
+| Median tick | 4.60 ms | 3.28 ms | 1.84 ms |
+| 90th percentile tick | 14.39 ms | 8.25 ms | 2.98 ms |
+| 99th percentile tick | 36.65 ms | 18.26 ms | 5.57 ms |
+| Server CPU | 200% of a core | 150% of a core | 111% of a core |
+| Memory allocated | 20.6 GB | 20.9 GB | 7.2 GB |
+| Peak resident memory | 5786 MB | 5800 MB | 4546 MB |
+| Total GC pause | 71 ms | 64 ms | 42 ms |
 
-Every StackSpigot run was better than every WindSpigot run on these four metrics. The players are bots that walk around, not a real server with plugins, so treat the numbers as indicative. In a 40 bot combat test CPU was the same. With `settings.async.knockback` enabled, WindSpigot delivered only about a tenth of the knockback packets to the players that were hit (about 100 against about 800 on StackSpigot) because of the shared packet queue that StackSpigot fixes.
+The median tick of every StackSpigot run (1.78, 1.81 and 1.92 ms) was lower than the median tick of every run of both WindSpigot versions. The players are bots that walk around, not a real server with plugins, so treat the numbers as indicative. Ramping up to 1000 bots, both StackSpigot and the latest WindSpigot kept the server above 19 TPS (worst tick 28 ms against 33 ms). In a 40 bot combat test the CPU use was the same as before the latest changes. With `settings.async.knockback` enabled, WindSpigot 283c604 delivered only about a tenth of the knockback packets to the players that were hit (about 100 against about 800 on StackSpigot) because of the shared packet queue that StackSpigot fixes.
 
 ## FAQ
 
