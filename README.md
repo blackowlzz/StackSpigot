@@ -31,7 +31,7 @@ Changes made on top of WindSpigot:
 - Plugins for Spigot, PaperSpigot, TacoSpigot and NachoSpigot 1.8.8 work as before. Plugins for newer Minecraft versions do not.
 
 **Commands**
-- `/tpsbar` (permission `stackspigot.command.tpsbar`, enabled in `settings.command.tpsbar`) toggles an action bar with the TPS, the MSPT and the ping of the player. Each value is green, yellow or red depending on how healthy it is. The TPS is the average of the last minute and the MSPT the average of the last 100 ticks, so a single slow tick does not move them. The update interval (20 ticks by default) and the text (`%tps%`, `%mspt%`, `%ping%`) are configurable. Clients of version 1.8 have no boss bar, so it uses the action bar.
+- `/tpsbar` (permission `stackspigot.command.tpsbar`, enabled in `settings.command.tpsbar`) toggles an action bar with the StackSpigot version, the TPS, the MSPT and the ping of the player. Each value is green, yellow or red depending on how healthy it is. The TPS is the average of the last minute and the MSPT the average of the last 100 ticks, so a single slow tick does not move them. The update interval (20 ticks by default) and the text (`%version%`, `%tps%`, `%mspt%`, `%ping%`) are configurable. Clients of version 1.8 have no boss bar, so it uses the action bar.
 
 **Fixes**
 - Async knockback could write packets to the wrong player. The packet queue was shared by all connections; each packet is now written only to its own channel.

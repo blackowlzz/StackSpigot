@@ -141,7 +141,7 @@ public class StackSpigotConfig {
 		c.addComment("settings.command.ping.other-ping-msg", "The message displayed for the /ping <player> command");
 		c.addComment("settings.command.tpsbar.enable", "Enables the command \"/tpsbar\" which shows the TPS, the MSPT and the ping in the action bar. Users require the permission stackspigot.command.tpsbar");
 		c.addComment("settings.command.tpsbar.update-interval", "How often the bar is updated, in ticks");
-		c.addComment("settings.command.tpsbar.format", "The text of the bar. %tps% is the average of the last minute, %mspt% the average of the last 100 ticks, %ping% the player's ping. They are colored by how healthy the value is");
+		c.addComment("settings.command.tpsbar.format", "The text of the bar. %version% is the StackSpigot release, %tps% is the average of the last minute, %mspt% the average of the last 100 ticks, %ping% the player's ping. They are colored by how healthy the value is");
 		c.addComment("settings.hit-delay", "This sets the delay between player attacks, 20 is the default. Setting this to 0 allows for no hit delay.");
 		c.addComment("settings.potion-speed-offset", "This sets the speed offset of splash potions, 0 is the default speed. Setting this higher makes potions splash faster. \nThis config option accepts decimals.");
 		c.addComment("settings.show-player-ips", "Disabling this will prevent display of player ips in the console.");
@@ -328,7 +328,7 @@ public class StackSpigotConfig {
 	private static void tpsBarCmd() {
 		tpsBarCmd = getBoolean("settings.command.tpsbar.enable", true);
 		tpsBarInterval = Math.max(1, getInt("settings.command.tpsbar.update-interval", 20));
-		tpsBarFormat = getString("settings.command.tpsbar.format", "&bTPS: %tps%  &bMSPT: %mspt%  &bPing: %ping%");
+		tpsBarFormat = getString("settings.command.tpsbar.format", "&bStackSpigot: &a%version%  &bTPS: %tps%  &bMSPT: %mspt%  &bPing: %ping%");
 	}
 	//End-of-StackSpigot-Code
 	

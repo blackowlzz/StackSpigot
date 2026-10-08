@@ -5,6 +5,8 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -24,6 +26,8 @@ import net.minecraft.server.PacketPlayOutChat;
 public class TpsBarCommand extends Command {
 
 	private static final Set<UUID> BARS = ConcurrentHashMap.newKeySet();
+	private static final Pattern VERSION = Pattern.compile("v\\d+(?:\\.\\d+)*");
+	private static String version;
 
 	public TpsBarCommand(String name) {
 		super(name);
@@ -74,7 +78,16 @@ public class TpsBarCommand extends Command {
 	}
 
 	private static String format() {
-		return ChatColor.translateAlternateColorCodes('&', StackSpigotConfig.tpsBarFormat);
+		return ChatColor.translateAlternateColorCodes('&', StackSpigotConfig.tpsBarFormat).replace("%version%", version());
+	}
+
+	// The release the server reports, such as v1.102.0, read from the server version so it is only written in one place
+	private static String version() {
+		if (version == null) {
+			Matcher matcher = VERSION.matcher(Bukkit.getVersion());
+			version = matcher.find() ? matcher.group() : "";
+		}
+		return version;
 	}
 
 	private static double averageTps() {
