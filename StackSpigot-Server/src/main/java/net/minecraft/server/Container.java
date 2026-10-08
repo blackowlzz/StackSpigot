@@ -75,9 +75,75 @@ public abstract class Container {
 		return arraylist;
 	}
 
+	//StackSpigot-Code
+	// b() runs every tick for every player. For the slots of a player inventory or a crafting grid it reads the
+	// array behind the slot, which skips the megamorphic IInventory.getItem call. Slots with their own getItem
+	// and other inventories still go through Slot.getItem.
+	private static final ClassValue<Boolean> PLAIN_SLOT = new ClassValue<Boolean>() {
+		@Override
+		protected Boolean computeValue(Class<?> type) {
+			try {
+				return type.getMethod("getItem").getDeclaringClass() == Slot.class;
+			} catch (NoSuchMethodException e) {
+				return false;
+			}
+		}
+	};
+	private static final byte SLOT_OTHER = 0;
+	private static final byte SLOT_PLAYER = 1;
+	private static final byte SLOT_CRAFTING = 2;
+	private byte[] slotKinds;
+	private IInventory[] slotInventories;
+	private int[] slotIndexes;
+
+	private void cacheSlots() {
+		final int size = this.c.size();
+		final byte[] kinds = new byte[size];
+		final IInventory[] inventories = new IInventory[size];
+		final int[] indexes = new int[size];
+		for (int i = 0; i < size; ++i) {
+			Slot slot = this.c.get(i);
+			inventories[i] = slot.inventory;
+			indexes[i] = slot.index;
+			if (slot.inventory != null && PLAIN_SLOT.get(slot.getClass())) {
+				Class<?> type = slot.inventory.getClass();
+				if (type == PlayerInventory.class) {
+					kinds[i] = SLOT_PLAYER;
+				} else if (type == InventoryCrafting.class) {
+					kinds[i] = SLOT_CRAFTING;
+				}
+			}
+		}
+		this.slotInventories = inventories;
+		this.slotIndexes = indexes;
+		this.slotKinds = kinds;
+	}
+
+	// Same result as c.get(i).getItem()
+	ItemStack slotItem(int i) {
+		if (this.slotKinds == null || this.slotKinds.length != this.c.size()) {
+			this.cacheSlots();
+		}
+		final int index = this.slotIndexes[i];
+		switch (this.slotKinds[i]) {
+		case SLOT_PLAYER: {
+			PlayerInventory inventory = (PlayerInventory) this.slotInventories[i];
+			ItemStack[] items = inventory.items;
+			return index < items.length ? items[index] : inventory.armor[index - items.length];
+		}
+		case SLOT_CRAFTING: {
+			ItemStack[] items = ((InventoryCrafting) this.slotInventories[i]).getContents();
+			return index < items.length ? items[index] : null;
+		}
+		default:
+			return this.c.get(i).getItem();
+		}
+	}
+	//End-of-StackSpigot-Code
+
 	public void b() {
 		for (int i = 0; i < this.c.size(); ++i) {
-			ItemStack itemstack = this.c.get(i).getItem();
+			ItemStack itemstack = this.slotItem(i); // StackSpigot
 			ItemStack itemstack1 = this.b.get(i);
 
 			if (!ItemStack.fastMatches(itemstack1, itemstack)
