@@ -14,6 +14,7 @@ import dev.stackspigot.commands.MobAICommand;
 import dev.stackspigot.commands.PingCommand;
 import dev.stackspigot.commands.SetMaxSlotCommand;
 import dev.stackspigot.commands.SpawnMobCommand;
+import dev.stackspigot.commands.TpsBarCommand; // StackSpigot
 import dev.stackspigot.config.StackSpigotConfig;
 import dev.stackspigot.protocol.MovementListener;
 import dev.stackspigot.protocol.PacketListener;
@@ -89,6 +90,13 @@ public class StackSpigot {
 			commandMap.register(pingCommand.getName(), "", pingCommand);
 		}
 		
+		//StackSpigot-Code
+		if (StackSpigotConfig.tpsBarCmd) {
+			TpsBarCommand tpsBarCommand = new TpsBarCommand("tpsbar");
+			commandMap.register(tpsBarCommand.getName(), "", tpsBarCommand);
+		}
+		//End-of-StackSpigot-Code
+
 		// NachoSpigot commands
 		if (StackSpigotConfig.setMaxSlotCommand) {
 			SetMaxSlotCommand setMaxSlotCommand = new SetMaxSlotCommand("sms"); // [Nacho-0021] Add setMaxPlayers within Bukkit.getServer() and SetMaxSlot Command

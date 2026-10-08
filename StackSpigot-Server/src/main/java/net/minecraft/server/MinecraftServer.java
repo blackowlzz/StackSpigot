@@ -939,6 +939,10 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
         this.lastMspt = ((double) (endTime - lastTick) / 1000000D);
         this.server.getPluginManager().callEvent(new com.destroystokyo.paper.event.server.ServerTickEndEvent(this.ticks, this.lastMspt, remaining));
         // Paper end
+        //StackSpigot-Code
+        this.recordMspt(this.lastMspt);
+        dev.stackspigot.commands.TpsBarCommand.tick(this.ticks);
+        //End-of-StackSpigot-Code
 		co.aikar.timings.TimingsManager.FULL_SERVER_TICK.stopTiming(); // Spigot
 	}
 
@@ -1721,4 +1725,27 @@ public abstract class MinecraftServer extends IAsyncTaskHandlerReentrant<TickTas
 	public double getLastMspt() {
 		return this.lastMspt;
 	}
+
+	//StackSpigot-Code
+	private final double[] recentMspt = new double[100];
+	private double recentMsptTotal;
+	private int recentMsptCount;
+
+	// Called at the end of every tick on the main thread
+	private void recordMspt(double mspt) {
+		final int slot = this.ticks % this.recentMspt.length;
+		if (this.recentMsptCount < this.recentMspt.length) {
+			this.recentMsptCount++;
+		} else {
+			this.recentMsptTotal -= this.recentMspt[slot];
+		}
+		this.recentMspt[slot] = mspt;
+		this.recentMsptTotal += mspt;
+	}
+
+	// Average duration of the last 100 ticks (5 seconds), in milliseconds. Only meaningful on the main thread.
+	public double getAverageMspt() {
+		return this.recentMsptCount == 0 ? 0.0D : this.recentMsptTotal / this.recentMsptCount;
+	}
+	//End-of-StackSpigot-Code
 }
