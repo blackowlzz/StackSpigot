@@ -169,9 +169,29 @@ public enum EnumProtocol {
 		}
 	}
 
-	public Integer a(EnumProtocolDirection enumprotocoldirection, Packet packet) {
-		return (Integer) ((BiMap) this.j.get(enumprotocoldirection)).inverse().get(packet.getClass());
+	//StackSpigot-Code
+	// Packet id lookup per class, done for every packet that is encoded. The maps are only filled while the
+	// protocols are constructed, so the cached ids never change.
+	private final ClassValue<Integer> serverboundIds = this.idCache(EnumProtocolDirection.SERVERBOUND);
+	private final ClassValue<Integer> clientboundIds = this.idCache(EnumProtocolDirection.CLIENTBOUND);
+
+	private ClassValue<Integer> idCache(final EnumProtocolDirection direction) {
+		return new ClassValue<Integer>() {
+			@Override
+			protected Integer computeValue(Class<?> type) {
+				BiMap<Integer, Class<? extends Packet>> map = EnumProtocol.this.j.get(direction);
+				Integer id = map == null ? null : map.inverse().get(type);
+				return id == null ? -1 : id;
+			}
+		};
 	}
+
+	public Integer a(EnumProtocolDirection enumprotocoldirection, Packet packet) {
+		int id = (enumprotocoldirection == EnumProtocolDirection.CLIENTBOUND ? this.clientboundIds : this.serverboundIds)
+				.get(packet.getClass());
+		return id < 0 ? null : id;
+	}
+	//End-of-StackSpigot-Code
 
 	public Packet a(EnumProtocolDirection enumprotocoldirection, int i)
 			throws IllegalAccessException, InstantiationException {

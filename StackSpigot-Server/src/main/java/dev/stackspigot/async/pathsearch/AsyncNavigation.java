@@ -14,6 +14,7 @@ import dev.stackspigot.config.StackSpigotConfig;
 import net.minecraft.server.BlockPosition;
 import net.minecraft.server.Entity;
 import net.minecraft.server.EntityInsentient;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.Navigation;
 import net.minecraft.server.PathEntity;
 import net.minecraft.server.World;
@@ -34,8 +35,14 @@ import net.minecraft.server.World;
  */
 public class AsyncNavigation extends Navigation {
 
-	private final List<SearchCacheEntryEntity> searchCache = Lists.newCopyOnWriteArrayList();
-	private final List<SearchCacheEntryPosition> positionSearchCache = Lists.newCopyOnWriteArrayList();
+	//StackSpigot-Code
+	// Only the latest result of each kind is kept. The previous lists returned the oldest result of the entity,
+	// whatever its target was, so once it was 3 ticks old every request fell back to a search on the main thread
+	// until the lists were cleared, and the lists were copied on every added result.
+	private volatile SearchCacheEntryEntity latestEntitySearch;
+	private volatile SearchCacheEntryPosition latestPositionSearch;
+	private int searchIssuedTick;
+	//End-of-StackSpigot-Code
 	
 	public final AtomicBoolean isSearching = new AtomicBoolean(false);
 	
@@ -53,12 +60,23 @@ public class AsyncNavigation extends Navigation {
 	}
 	
 	private void issueSearch(Entity targetEntity) {
+		this.searchIssuedTick = MinecraftServer.currentTick; // StackSpigot
 		SearchHandler.getInstance().issueSearch(targetEntity, this);
 	}
 	
 	private void issueSearch(int x, int y, int z) {
+		this.searchIssuedTick = MinecraftServer.currentTick; // StackSpigot
 		SearchHandler.getInstance().issueSearch(x, y, z, this);
 	}
+
+	//StackSpigot-Code
+	// A search in progress that is not done within 2 ticks is replaced by a search on the main thread when the
+	// accuracy is ensured
+	private boolean searchTooSlow() {
+		return StackSpigotConfig.ensurePathSearchAccuracy && this.isSearching.get()
+				&& MinecraftServer.currentTick - this.searchIssuedTick >= 2;
+	}
+	//End-of-StackSpigot-Code
 	
 	@Override
 	public PathEntity a(Entity targetEntity) {
@@ -69,30 +87,23 @@ public class AsyncNavigation extends Navigation {
 		if ((!offLoadedSearches(this.getEntity().getBukkitEntity().getType()) || isTooClose) && !alreadySearching) {
 			return super.a(targetEntity);
 		}
-				
-		PathEntity finalPath = null;
-		
-		for (SearchCacheEntryEntity cacheEntry : this.searchCache) {
-			if (cacheEntry.getTargetingEntity() == this.getEntity()) {
-				finalPath = cacheEntry.getPath();
-				
-				if (StackSpigotConfig.ensurePathSearchAccuracy) {
-					
-					// Perform sync if server cannot process an accurate async pathfind in time
-					if (!cacheEntry.isAccurate()) {
-						return super.a(targetEntity);
-					}
-				}
-				
-				break;
-			}
+
+		//StackSpigot-Code
+		SearchCacheEntryEntity latest = this.latestEntitySearch;
+		PathEntity previousPath = latest != null && latest.getTarget() == targetEntity ? latest.getPath() : null;
+		if (previousPath != null && latest.isAccurate()) {
+			return previousPath;
 		}
-		
-		if (finalPath == null && !this.isSearching.get()) {
+
+		if (!this.isSearching.get()) {
 			this.issueSearch(targetEntity);
+		} else if (this.searchTooSlow()) {
+			return super.a(targetEntity);
 		}
-		
-		return finalPath;
+
+		// Keep following the previous path to the same target until the new one is ready
+		return previousPath;
+		//End-of-StackSpigot-Code
 	}
 	
 	@Override
@@ -104,30 +115,23 @@ public class AsyncNavigation extends Navigation {
 		if ((!offLoadedSearches(this.getEntity().getBukkitEntity().getType()) || isTooClose) && !alreadySearching) {
 			return super.a(new BlockPosition(x, y, z));
 		}
-				
-		PathEntity finalPath = null;
-		
-		for (SearchCacheEntryPosition cacheEntry : this.positionSearchCache) {
-			if (cacheEntry.getTargetingEntity() == this.getEntity()) {
-				finalPath = cacheEntry.getPath();
-				
-				if (StackSpigotConfig.ensurePathSearchAccuracy) {
-					
-					// Perform sync if server cannot process an accurate async pathfind in time
-					if (!cacheEntry.isAccurate()) {
-						return super.a(new BlockPosition(x, y, z));
-					}
-				}
-				
-				break;
-			}
+
+		//StackSpigot-Code
+		SearchCacheEntryPosition latest = this.latestPositionSearch;
+		PathEntity previousPath = latest != null && latest.getX() == x && latest.getY() == y && latest.getZ() == z
+				? latest.getPath() : null;
+		if (previousPath != null && latest.isAccurate()) {
+			return previousPath;
 		}
-		
-		if (finalPath == null && !this.isSearching.get()) {
+
+		if (!this.isSearching.get()) {
 			this.issueSearch(x, y, z);
+		} else if (this.searchTooSlow()) {
+			return super.a(new BlockPosition(x, y, z));
 		}
-		
-		return finalPath;
+
+		return previousPath;
+		//End-of-StackSpigot-Code
 	}
 	
 	@Override
@@ -136,11 +140,13 @@ public class AsyncNavigation extends Navigation {
 	}
 	
 	public void addEntry(SearchCacheEntry cacheEntry) {
+		//StackSpigot-Code
 		if (cacheEntry instanceof SearchCacheEntryEntity) {
-			this.searchCache.add((SearchCacheEntryEntity) cacheEntry);
+			this.latestEntitySearch = (SearchCacheEntryEntity) cacheEntry;
 		} else {
-			this.positionSearchCache.add((SearchCacheEntryPosition) cacheEntry);
+			this.latestPositionSearch = (SearchCacheEntryPosition) cacheEntry;
 		}
+		//End-of-StackSpigot-Code
 	}
 	
 	@Override
@@ -149,8 +155,10 @@ public class AsyncNavigation extends Navigation {
 		if (this.ticksSinceCleanup == 150) {
 			this.ticksSinceCleanup = 0;
 			
-			this.searchCache.clear();
-			this.positionSearchCache.clear();
+			//StackSpigot-Code
+			this.latestEntitySearch = null;
+			this.latestPositionSearch = null;
+			//End-of-StackSpigot-Code
 		}
 	}
 

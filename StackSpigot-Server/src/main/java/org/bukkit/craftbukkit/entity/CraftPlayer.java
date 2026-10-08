@@ -1119,7 +1119,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
 
 	@Override
 	public boolean canSee(Player player) {
-		return !hiddenPlayers.contains(player.getUniqueId());
+		return hiddenPlayers.isEmpty() || !hiddenPlayers.contains(player.getUniqueId()); // StackSpigot - skip the UUID lookup when no player is hidden
 	}
 
 	@Override

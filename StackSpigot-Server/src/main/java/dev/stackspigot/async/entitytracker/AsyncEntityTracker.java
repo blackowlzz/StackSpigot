@@ -13,7 +13,18 @@ import net.minecraft.server.*;
 
 public class AsyncEntityTracker extends EntityTracker {
 	
-	private static final ExecutorService trackingThreadExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("StackSpigot Entity Tracker Thread").build());
+	//StackSpigot-Code
+	// Lets PlayerConnection find the packet batch of the current tracker task without a thread local lookup
+	public static final class TrackerThread extends Thread {
+		public Object trackerBatch;
+
+		public TrackerThread(Runnable runnable) {
+			super(runnable);
+		}
+	}
+	//End-of-StackSpigot-Code
+
+	private static final ExecutorService trackingThreadExecutor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("StackSpigot Entity Tracker Thread").setThreadFactory(TrackerThread::new).build()); // StackSpigot - TrackerThread
 	private final WorldServer worldServer;	
 	
 	public AsyncEntityTracker(WorldServer worldserver) {
@@ -36,6 +47,7 @@ public class AsyncEntityTracker extends EntityTracker {
 				final int finalOffset = offset;
 
 				AsyncUtil.run(() -> {
+					PlayerConnection.beginTrackerBatch(finalOffset);
 					try {
 						for (int index = finalOffset; index < size; index += threads) {
 							try {
@@ -45,7 +57,11 @@ public class AsyncEntityTracker extends EntityTracker {
 							}
 						}
 					} finally {
-						latch.decrement();
+						try {
+							PlayerConnection.endTrackerBatch();
+						} finally {
+							latch.decrement();
+						}
 					}
 				}, trackingThreadExecutor);
 

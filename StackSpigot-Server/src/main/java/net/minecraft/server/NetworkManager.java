@@ -286,8 +286,10 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 		final Channel channel = this.channel;
 		Runnable writer = () -> {
 			try {
-				for (int i = 0; i < toWrite.size(); i++) {
-					channel.write(toWrite.get(i), channel.voidPromise());
+				if (!this.writeMerged(toWrite)) {
+					for (int i = 0; i < toWrite.size(); i++) {
+						channel.write(toWrite.get(i), channel.voidPromise());
+					}
 				}
 				channel.flush();
 			} catch (Exception e) {
@@ -300,6 +302,67 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 		} else {
 			channel.eventLoop().execute(writer);
 		}
+	}
+
+	// The handlers a connection has without plugins. Writes only go through encoder, prepender and encrypt.
+	private static final java.util.Set<String> VANILLA_HANDLERS = com.google.common.collect.ImmutableSet.of("timeout",
+			"legacy_query", "splitter", "decoder", "prepender", "encoder", "packet_handler", "decrypt", "encrypt");
+	private static final int MERGED_WRITE_SIZE = 32768;
+
+	// Encodes the packets into as few buffers as possible, each packet followed by its VarInt length like the
+	// prepender does, and writes them below the prepender. Compared to writing each packet through the pipeline,
+	// this saves two buffer allocations, two outbound buffer entries and their release per packet, and the flush
+	// writes one buffer instead of two per packet. The bytes sent are the same. Only used when the encoder and the
+	// prepender are the vanilla ones and no other handler that could see outgoing messages is in the pipeline (a
+	// compressor, or a handler added by a plugin such as ViaVersion or ProtocolLib), otherwise returns false and
+	// nothing is written. Must run on the event loop.
+	private boolean writeMerged(java.util.List<Packet<?>> packets) throws Exception {
+		final io.netty.channel.ChannelPipeline pipeline = this.channel.pipeline();
+		final ChannelHandlerContext encoderContext = pipeline.context("encoder");
+		final ChannelHandlerContext prependerContext = pipeline.context("prepender");
+		if (encoderContext == null || prependerContext == null || encoderContext.handler().getClass() != PacketEncoder.class
+				|| prependerContext.handler() != PacketPrepender.INSTANCE) {
+			return false;
+		}
+		for (String name : pipeline.names()) {
+			if (!VANILLA_HANDLERS.contains(name) && pipeline.get(name) instanceof io.netty.channel.ChannelOutboundHandler) {
+				return false;
+			}
+		}
+
+		final PacketEncoder encoder = (PacketEncoder) encoderContext.handler();
+		io.netty.buffer.ByteBuf out = encoderContext.alloc().directBuffer(Math.min(MERGED_WRITE_SIZE, packets.size() * 64));
+		try {
+			for (int i = 0; i < packets.size(); i++) {
+				final int start = out.writerIndex();
+				out.writeByte(0); // room for a one byte length, the common case
+				encoder.a(encoderContext, packets.get(i), out);
+				final int length = out.writerIndex() - start - 1;
+				if (length < 128) {
+					out.setByte(start, length);
+				} else {
+					final byte[] body = new byte[length];
+					out.getBytes(start + 1, body);
+					out.writerIndex(start);
+					PacketPrepender.writeVarInt(out, length);
+					out.writeBytes(body);
+				}
+				if (out.readableBytes() >= MERGED_WRITE_SIZE && i + 1 < packets.size()) {
+					io.netty.buffer.ByteBuf full = out;
+					out = null;
+					prependerContext.write(full, this.channel.voidPromise());
+					out = encoderContext.alloc().directBuffer(MERGED_WRITE_SIZE);
+				}
+			}
+			io.netty.buffer.ByteBuf last = out;
+			out = null;
+			prependerContext.write(last, this.channel.voidPromise());
+		} finally {
+			if (out != null) {
+				out.release();
+			}
+		}
+		return true;
 	}
 	//End-of-StackSpigot-Code
 
@@ -538,7 +601,7 @@ public class NetworkManager extends SimpleChannelInboundHandler<Packet> {
 			}
 
 			if (this.channel.pipeline().get("compress") instanceof PacketCompressor) {
-				((PacketCompressor) this.channel.pipeline().get("decompress")).a(compressionThreshold);
+				((PacketCompressor) this.channel.pipeline().get("compress")).a(compressionThreshold); // StackSpigot - was "decompress", a ClassCastException
 			} else {
 				this.channel.pipeline().addBefore("encoder", "compress",
 						new PacketCompressor(compressor, compressionThreshold)); // Paper

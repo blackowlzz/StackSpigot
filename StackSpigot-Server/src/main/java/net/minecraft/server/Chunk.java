@@ -38,6 +38,10 @@ public class Chunk {
 	private final int[] itemCounts = new int[16];
 	private final int[] inventoryEntityCounts = new int[16];
 	// PaperSpigot end
+	//StackSpigot-Code
+	private final int[] collisionBoxCounts = new int[16];
+	private final int[] playerTouchCounts = new int[16];
+	//End-of-StackSpigot-Code
 	private boolean done;
 	private boolean lit;
 	private boolean p;
@@ -828,6 +832,14 @@ public class Chunk {
 			inventoryEntityCounts[k]++;
 		}
 		// PaperSpigot end
+		//StackSpigot-Code
+		if (entity.hasCollisionBox) {
+			collisionBoxCounts[k]++;
+		}
+		if (entity.touchesPlayers) {
+			playerTouchCounts[k]++;
+		}
+		//End-of-StackSpigot-Code
 		// Spigot start - increment creature type count
 		// Keep this synced up with World.a(Class)
 		if (entity instanceof EntityInsentient) {
@@ -869,6 +881,14 @@ public class Chunk {
 			inventoryEntityCounts[i]--;
 		}
 		// PaperSpigot end
+		//StackSpigot-Code
+		if (entity.hasCollisionBox) {
+			collisionBoxCounts[i]--;
+		}
+		if (entity.touchesPlayers) {
+			playerTouchCounts[i]--;
+		}
+		//End-of-StackSpigot-Code
 		// Spigot start - decrement creature type count
 		// Keep this synced up with World.a(Class)
 		if (entity instanceof EntityInsentient) {
@@ -1064,11 +1084,21 @@ public class Chunk {
 
 	private boolean collectEntities(Entity source, AxisAlignedBB axisalignedbb, List<Entity> slice,
 			List<Entity> entities, Predicate<? super Entity> by, int amount) {
-		for (int i = 0; i < slice.size(); ++i) {
-			int next = world.random.nextInt(slice.size());
+		//StackSpigot-Code
+		// Visit every entity of the slice once, starting at a random index. Picking a random index on every
+		// iteration visited some entities several times and skipped others, so an entity touching only a few
+		// others often did not collide with them at all, and needed a linear contains check per candidate
+		final int size = slice.size();
+		final int start = size > 1 ? world.random.nextInt(size) : 0;
+		for (int i = 0; i < size; ++i) {
+			int next = start + i;
+			if (next >= size) {
+				next -= size;
+			}
 			Entity entity = slice.get(next);
 
-			if (entity.getBoundingBox().b(axisalignedbb) && entity != source && !entities.contains(entity)) {
+			if (entity.getBoundingBox().b(axisalignedbb) && entity != source) {
+		//End-of-StackSpigot-Code
 				if (by == null || by.apply(entity)) {
 					entities.add(entity);
 				}
@@ -1153,6 +1183,54 @@ public class Chunk {
 
 	}
 
+	//StackSpigot-Code
+	// Adds the collision boxes (S()) of the entities in this chunk that intersect the search box, skipping the
+	// sections that have no entity with such a box. Same result as filtering getEntitiesInAABB with
+	// IEntitySelector.d for entities that do not override j(Entity).
+	public void addEntityCollisionBoxes(Entity source, AxisAlignedBB search, AxisAlignedBB axisalignedbb,
+			List<AxisAlignedBB> list) {
+		int minSectionY = MathHelper.clamp(MathHelper.floor((search.b - 2.0D) / 16.0D), 0, this.entitySlices.length - 1);
+		int maxSectionY = MathHelper.clamp(MathHelper.floor((search.e + 2.0D) / 16.0D), 0, this.entitySlices.length - 1);
+
+		for (int sectionY = minSectionY; sectionY <= maxSectionY; ++sectionY) {
+			if (this.collisionBoxCounts[sectionY] <= 0) {
+				continue;
+			}
+			List<Entity> slice = this.entitySlices[sectionY];
+			for (int i = 0; i < slice.size(); ++i) {
+				Entity entity = slice.get(i);
+				if (entity.hasCollisionBox && entity != source && entity.getBoundingBox().b(search)
+						&& IEntitySelector.d.apply(entity)) {
+					AxisAlignedBB box = entity.S();
+					if (box != null && box.b(axisalignedbb)) {
+						list.add(box);
+					}
+				}
+			}
+		}
+	}
+	// Same as getEntitiesInAABB with IEntitySelector.d, limited to the entities that override d(EntityHuman) and
+	// skipping the sections that have none of them
+	public void addEntitiesTouchingPlayers(Entity source, AxisAlignedBB axisalignedbb, List<Entity> list) {
+		int minSectionY = MathHelper.clamp(MathHelper.floor((axisalignedbb.b - 2.0D) / 16.0D), 0, this.entitySlices.length - 1);
+		int maxSectionY = MathHelper.clamp(MathHelper.floor((axisalignedbb.e + 2.0D) / 16.0D), 0, this.entitySlices.length - 1);
+
+		for (int sectionY = minSectionY; sectionY <= maxSectionY; ++sectionY) {
+			if (this.playerTouchCounts[sectionY] <= 0) {
+				continue;
+			}
+			List<Entity> slice = this.entitySlices[sectionY];
+			for (int i = 0; i < slice.size(); ++i) {
+				Entity entity = slice.get(i);
+				if (entity.touchesPlayers && entity != source && entity.getBoundingBox().b(axisalignedbb)
+						&& IEntitySelector.d.apply(entity)) {
+					list.add(entity);
+				}
+			}
+		}
+	}
+	//End-of-StackSpigot-Code
+
 	public <T extends Entity> void a(Class<? extends T> oclass, AxisAlignedBB axisalignedbb, List<T> list,
 			Predicate<? super T> predicate) {
 		int i = MathHelper.floor((axisalignedbb.b - 2.0D) / 16.0D);
@@ -1163,7 +1241,7 @@ public class Chunk {
 
 		// PaperSpigot start
 		int[] counts;
-		if (ItemStack.class.isAssignableFrom(oclass)) {
+		if (EntityItem.class.isAssignableFrom(oclass)) { // StackSpigot - was ItemStack, which is never an entity class
 			counts = itemCounts;
 		} else if (IInventory.class.isAssignableFrom(oclass)) {
 			counts = inventoryEntityCounts;

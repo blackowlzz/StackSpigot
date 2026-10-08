@@ -341,6 +341,19 @@ public class StackSpigotConfig {
 		modernKeepalive = getBoolean("settings.modern-keep-alive", false);
 	}
 	
+	//StackSpigot-Code
+	// Pushing between living entities. Boats and minecarts still push and get pushed, they handle it themselves.
+	public static boolean collisionPlayerPlayer;
+	public static boolean collisionPlayerMob;
+	public static boolean collisionMobMob;
+
+	private static void entityCollisions() {
+		collisionPlayerPlayer = getBoolean("settings.entity-collisions.player-player", false);
+		collisionPlayerMob = getBoolean("settings.entity-collisions.player-mob", false);
+		collisionMobMob = getBoolean("settings.entity-collisions.mob-mob", false);
+	}
+	//End-of-StackSpigot-Code
+
 	public static boolean asyncPathSearches;
 	public static int distanceToAsync;
 	public static int pathSearchThreads;

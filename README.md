@@ -35,6 +35,11 @@ Changes made on top of WindSpigot:
 - The entity tracker threw a `NullPointerException` for players that were still logging in.
 - `IndexedLinkedHashSet` could report a size larger than its list, which caused hidden `IndexOutOfBoundsException` errors in the tracker threads. `removeAll` and `retainAll` now report whether the set changed.
 - `FastRandom` stayed at zero forever when seeded with 0.
+- Entity pushing picked a random entity of the chunk section on every iteration, so an entity touching only a few others often skipped them. Every entity of the section is now visited once, starting at a random index.
+- The async path search returned the oldest cached path of the entity, whatever its target was, and once it was 3 ticks old every request fell back to a search on the main thread until the cache was cleared. Only the latest result for the same target is used now, a new async search is started when it gets old, and the main thread search is only used when a search is not done within 2 ticks.
+- The Paper check that skips chunk sections without items compared the class with `ItemStack`, which is never an entity, so it never applied (used by hoppers and item merging).
+- A ticking tile entity removed by the spawner fix made the next tile entity skip its tick.
+- Setting up compression a second time cast the decompressor to the compressor and threw a `ClassCastException`.
 
 **Performance**
 - The combat packet thread no longer drains its queue in quadratic time, no longer spins on sub-millisecond waits, and survives a failing packet write.
@@ -53,6 +58,14 @@ Changes made on top of WindSpigot:
 - The ProtocolSupport check that every packet serializer made against the plugin manager (a synchronized lookup that built new strings each time) is cached and refreshed once per second. In an 11 run comparison at 600 bots this lowered the memory allocated from about 8.8 GB to about 5.4 GB, the peak resident memory by about 11 to 17%, and the server CPU from about 142% to about 125% of a core. The median tick reported by `/tps` was about 0.5 ms higher in every one of those runs (about 3.4 ms against 2.9 ms), and the cause was not found.
 - Entity activation visits every chunk once per group of players that share the same chunk range, instead of once per player. The set of activated entities is the same (a test compares it with the previous algorithm on 300 random worlds). With 600 players standing at the same spot the median tick measured inside the server went from 3.16 ms to 2.40 ms in 3 runs of 800 ticks. Players that are far apart from each other gain little.
 - The packets queued by the entity tracker are taken from the queue and written by the Netty event loop of each connection, so the main thread no longer touches them. This only applies while no packet listener overrides `onSentPacket` (the built in anti crash listener does not); otherwise the previous path is used. With 600 players the tick measured inside the server went from a median of 2.18 ms to 1.94 ms, from 7.26 ms to 3.24 ms at the 90th percentile and from 18.39 ms to 7.43 ms at the 99th, in 4 runs of about 800 ticks each, with the same CPU use (about 106% of a core in both).
+
+- The packets of a batch (entity tracker, sounds) are encoded into a few large buffers with their length prefix instead of going through the encoder and the prepender one by one, which saved two buffer allocations, two outbound entries and their release per packet. The bytes sent are the same (a test compares them). This is only used when the connection has the vanilla handlers and no compression; with a plugin handler such as ViaVersion or ProtocolLib, or with compression enabled, the previous path is used.
+- The entity tracker threads collect the packets they queue per player and add them to each player queue once per tick instead of once per packet, and the queue is a chunked MPSC queue instead of a `ConcurrentLinkedQueue`. All the tracker threads used to contend on the queues of the same players.
+- Sounds and world effects sent to nearby players are queued and written with the entity tracker packets of the tick instead of waking up the Netty event loop for every packet and player. The distance is checked before the visibility lookup, `canSee` skips the lookup when no player is hidden, and the player map is a hash map instead of an array map searched linearly.
+- Block collisions with other entities only search the chunk sections that contain an entity with a collision box (boats and minecarts), instead of collecting every entity around; entities that collide with every entity (boats and minecarts) still do. Picking up items only searches the sections that contain an entity reacting to players (items, experience orbs, arrows, slimes).
+- Pushing between living entities is off by default and can be turned on per pair in `stackspigot.yml` (`settings.entity-collisions.player-player`, `player-mob` and `mob-mob`). When every pair an entity is part of is off, the search for entities to push is skipped. Boats and minecarts still push and get pushed. In the 300 bot test the median tick went from 6.9 ms to 5.6 ms, the allocation rate from 100 to 75 MB/s and the packets sent dropped by about a third; with mobs no difference was measured.
+- The packet id of each packet class is cached instead of looked up in the inverse of a `HashBiMap` for every packet encoded.
+- In a test with 300 bots fighting in 6 groups of 50 (2 runs each, 4 GB heap), the server CPU went from about 613% to about 193% of a core, the median tick from 11.5 ms to 7.0 ms, the 99th percentile from 40 ms to 19 ms and the allocation rate from about 126 to 99 MB/s. With 120 bots and about 770 mobs at night the CPU went from about 140% to 84% of a core and the median tick from 6.3 ms to 5.6 ms; the allocation rate went up from 22 to 28 MB/s because the path searches now really run on the path search threads.
 
 **Dependencies**
 - Updated Maven plugins, Netty, commons-lang3, fastutil, log4j, snakeyaml, the SQLite and MySQL drivers and others. Mockito is test only and is no longer bundled in the server jar. Guava and Gson are kept in sync with Minecraft and were not changed.
@@ -114,6 +127,15 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [StackSpigot-0016] Cache the ProtocolSupport lookup of the packet serializer
 [StackSpigot-0017] Group players with the same chunk range in the entity activation check
 [StackSpigot-0018] Let the Netty event loop drain the packets queued by the entity tracker
+[StackSpigot-0019] Encode batched packets into merged buffers
+[StackSpigot-0020] Collect entity tracker packets per thread and use an MPSC queue
+[StackSpigot-0021] Queue nearby sound and effect packets with the tracker packets
+[StackSpigot-0022] Only search chunk sections with relevant entities for collisions and pickups
+[StackSpigot-0023] Visit every entity once when pushing entities
+[StackSpigot-0024] Fix the async path search cache
+[StackSpigot-0025] Cache packet ids per class
+[StackSpigot-0026] Fix the item count check, the tile entity skip and the compression re-setup
+[StackSpigot-0027] Configurable entity collisions, off by default
 
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config

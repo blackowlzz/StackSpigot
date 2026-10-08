@@ -200,6 +200,46 @@ public abstract class Entity implements ICommandListener {
 		this.die();
 	}
 
+	//StackSpigot-Code
+	// Only entities that override S() (boats and minecarts in vanilla) have a box other entities collide with,
+	// and only entities that override j(Entity) collide with the boxes of every entity around them
+	private static final ClassValue<Boolean> HAS_COLLISION_BOX = new ClassValue<Boolean>() {
+		@Override
+		protected Boolean computeValue(Class<?> type) {
+			try {
+				return type.getMethod("S").getDeclaringClass() != Entity.class;
+			} catch (NoSuchMethodException e) {
+				return true;
+			}
+		}
+	};
+	private static final ClassValue<Boolean> COLLIDES_WITH_ENTITIES = new ClassValue<Boolean>() {
+		@Override
+		protected Boolean computeValue(Class<?> type) {
+			try {
+				return type.getMethod("j", Entity.class).getDeclaringClass() != Entity.class;
+			} catch (NoSuchMethodException e) {
+				return true;
+			}
+		}
+	};
+	// Only entities that override d(EntityHuman) (items, experience orbs, arrows and slimes in vanilla) do something
+	// when a player touches them
+	private static final ClassValue<Boolean> TOUCHES_PLAYERS = new ClassValue<Boolean>() {
+		@Override
+		protected Boolean computeValue(Class<?> type) {
+			try {
+				return type.getMethod("d", EntityHuman.class).getDeclaringClass() != Entity.class;
+			} catch (NoSuchMethodException e) {
+				return true;
+			}
+		}
+	};
+	public final boolean hasCollisionBox = HAS_COLLISION_BOX.get(this.getClass());
+	public final boolean touchesPlayers = TOUCHES_PLAYERS.get(this.getClass());
+	public final boolean collidesWithEntities = COLLIDES_WITH_ENTITIES.get(this.getClass());
+	//End-of-StackSpigot-Code
+
 	public Entity(World world) {
 		this.id = Entity.entityCount++;
 		this.j = 1.0D;

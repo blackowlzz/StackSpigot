@@ -1847,10 +1847,23 @@ public abstract class EntityLiving extends Entity {
 	}
 
 	protected void bL() {
+		//StackSpigot-Code
+		// Pushing between living entities can be turned off per pair in stackspigot.yml. When every pair this
+		// entity is part of is off, the search is skipped; boats and minecarts push entities from their own tick.
+		final boolean isPlayer = this instanceof EntityPlayer;
+		final boolean withPlayers = isPlayer ? dev.stackspigot.config.StackSpigotConfig.collisionPlayerPlayer
+				: dev.stackspigot.config.StackSpigotConfig.collisionPlayerMob;
+		final boolean withMobs = isPlayer ? dev.stackspigot.config.StackSpigotConfig.collisionPlayerMob
+				: dev.stackspigot.config.StackSpigotConfig.collisionMobMob;
+		if (!withPlayers && !withMobs) {
+			return;
+		}
+		//End-of-StackSpigot-Code
 		// IonSpigot start - Optimise Entity Collisions
 		List list = this.world.getEntitiesByAmount(this,
 				this.getBoundingBox().grow(0.20000000298023224D, 0.0D, 0.20000000298023224D),
-				input -> IEntitySelector.d.apply(input) && input != null && input.ae(),
+				input -> IEntitySelector.d.apply(input) && input != null && input.ae()
+						&& (!(input instanceof EntityLiving) || (input instanceof EntityPlayer ? withPlayers : withMobs)), // StackSpigot
 				world.spigotConfig.maxCollisionsPerEntity);
 		// IonSpigot end
 

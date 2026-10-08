@@ -1590,6 +1590,27 @@ public abstract class World implements IBlockAccess {
 		}
 
 		double d0 = 0.25D;
+		//StackSpigot-Code
+		// Most entities only collide with the boxes of boats and minecarts, so only the chunk sections that
+		// contain such entities are searched instead of collecting every entity around
+		if (!entity.collidesWithEntities) {
+			AxisAlignedBB search = axisalignedbb.grow(d0, d0, d0);
+			int minChunkX = MathHelper.floor((search.a - 2.0D) / 16.0D);
+			int maxChunkX = MathHelper.floor((search.d + 2.0D) / 16.0D);
+			int minChunkZ = MathHelper.floor((search.c - 2.0D) / 16.0D);
+			int maxChunkZ = MathHelper.floor((search.f + 2.0D) / 16.0D);
+
+			for (int chunkX = minChunkX; chunkX <= maxChunkX; ++chunkX) {
+				for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; ++chunkZ) {
+					Chunk chunk = this.getChunkIfLoaded(chunkX, chunkZ);
+					if (chunk != null) {
+						chunk.addEntityCollisionBoxes(entity, search, axisalignedbb, arraylist);
+					}
+				}
+			}
+			return arraylist;
+		}
+		//End-of-StackSpigot-Code
 		List list = this.getEntities(entity, axisalignedbb.grow(d0, d0, d0));
 
 		for (int j2 = 0; j2 < list.size(); ++j2) {
@@ -1882,7 +1903,7 @@ public abstract class World implements IBlockAccess {
 					try {
 						if (this.getTileEntity(tileentity.getPosition()) == null) {
 							// [Nacho-Spigot] Spawner fix
-							tileEntityList.remove(tileentity);
+							this.tileEntityList.remove(tileTickPosition--); // StackSpigot - remove by index, removing by object skipped the next tile entity
 							continue;
 						}
 						tileentity.tickTimer.startTiming(); // Spigot
@@ -3070,6 +3091,27 @@ public abstract class World implements IBlockAccess {
 		return entities;
 	}
 	// IonSpigot end
+
+	//StackSpigot-Code
+	public List<Entity> getEntitiesTouchingPlayers(Entity entity, AxisAlignedBB axisalignedbb) {
+		ArrayList<Entity> arraylist = Lists.newArrayList();
+		int minChunkX = MathHelper.floor((axisalignedbb.a - 2.0D) / 16.0D);
+		int maxChunkX = MathHelper.floor((axisalignedbb.d + 2.0D) / 16.0D);
+		int minChunkZ = MathHelper.floor((axisalignedbb.c - 2.0D) / 16.0D);
+		int maxChunkZ = MathHelper.floor((axisalignedbb.f + 2.0D) / 16.0D);
+
+		for (int chunkX = minChunkX; chunkX <= maxChunkX; ++chunkX) {
+			for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; ++chunkZ) {
+				Chunk chunk = this.getChunkIfLoaded(chunkX, chunkZ);
+				if (chunk != null) {
+					chunk.addEntitiesTouchingPlayers(entity, axisalignedbb, arraylist);
+				}
+			}
+		}
+
+		return arraylist;
+	}
+	//End-of-StackSpigot-Code
 
 	public List<Entity> getEntities(Entity entity, AxisAlignedBB axisalignedbb) {
 		return this.a(entity, axisalignedbb, IEntitySelector.d);

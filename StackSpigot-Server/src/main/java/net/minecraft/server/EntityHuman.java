@@ -454,7 +454,7 @@ public abstract class EntityHuman extends EntityLiving {
 				axisalignedbb = this.getBoundingBox().grow(1.0D, 0.5D, 1.0D);
 			}
 
-			List list = this.world.getEntities(this, axisalignedbb);
+			List list = this.world.getEntitiesTouchingPlayers(this, axisalignedbb); // StackSpigot - the other entities do nothing when touched
 
 			if (this.ae()) { // Spigot: Add this.ae() condition (second !this.isDead near bottom of
 								// EntityLiving)

@@ -99,7 +99,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 	
 	// WindSpigot - queue-able packets
 	//StackSpigot-Code
-	private Queue<Packet<?>> queuedPackets = new java.util.concurrent.ConcurrentLinkedQueue<>();
+	private final Queue<Object> queuedPackets = io.netty.util.internal.PlatformDependent.newMpscQueue(); // StackSpigot - packets or lists of packets; the tracker threads produce, a single drain at a time consumes
 	//End-of-StackSpigot-Code
 
 	public PlayerConnection(MinecraftServer minecraftserver, NetworkManager networkmanager, EntityPlayer entityplayer) {
@@ -2692,19 +2692,105 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 	// WindSpigot start - queue-able packets
 	public void queuePacket(Packet<?> packet) {
 		if (packet == null) return;
+		//StackSpigot-Code
+		Thread thread = Thread.currentThread();
+		if (thread instanceof dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread) {
+			TrackerBatch trackerBatch = (TrackerBatch) ((dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread) thread).trackerBatch;
+			if (trackerBatch != null && trackerBatch.active) {
+				trackerBatch.add(this, packet);
+				return;
+			}
+		}
+		//End-of-StackSpigot-Code
 		queuedPackets.add(packet);
 	}
 	
 	//StackSpigot-Code
+	// While an entity tracker thread updates its entries, the packets it queues are collected per connection and
+	// added to each connection queue as one list when it is done. All the tracker threads queue packets for the
+	// same players at the same time, so adding each packet on its own made them contend on the same queues.
+	// Each tracker task has its own slot in every connection, so collecting a packet needs no lookup or lock.
+	private static final int TRACKER_SLOTS = 64;
+	@SuppressWarnings("unchecked")
+	private final java.util.List<Packet<?>>[] trackerLists = new java.util.List[TRACKER_SLOTS];
+	private final int[] trackerListSizes = new int[TRACKER_SLOTS];
+
+	public static final class TrackerBatch {
+		private final java.util.List<PlayerConnection> touched = new java.util.ArrayList<>();
+		private int slot;
+		private boolean active;
+
+		private void add(PlayerConnection connection, Packet<?> packet) {
+			java.util.List<Packet<?>> list = connection.trackerLists[this.slot];
+			if (list == null) {
+				// Sized from the previous batch so the list rarely grows
+				int previous = connection.trackerListSizes[this.slot];
+				list = new java.util.ArrayList<>(Math.max(10, previous + (previous >> 2)));
+				connection.trackerLists[this.slot] = list;
+				this.touched.add(connection);
+			}
+			list.add(packet);
+		}
+	}
+
+	public static void beginTrackerBatch(int slot) {
+		Thread thread = Thread.currentThread();
+		if (slot < 0 || slot >= TRACKER_SLOTS || !(thread instanceof dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread)) {
+			return;
+		}
+		dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread trackerThread = (dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread) thread;
+		TrackerBatch trackerBatch = (TrackerBatch) trackerThread.trackerBatch;
+		if (trackerBatch == null) {
+			trackerBatch = new TrackerBatch();
+			trackerThread.trackerBatch = trackerBatch;
+		}
+		trackerBatch.slot = slot;
+		trackerBatch.active = true;
+	}
+
+	public static void endTrackerBatch() {
+		Thread thread = Thread.currentThread();
+		if (!(thread instanceof dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread)) {
+			return;
+		}
+		TrackerBatch trackerBatch = (TrackerBatch) ((dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread) thread).trackerBatch;
+		if (trackerBatch == null || !trackerBatch.active) {
+			return;
+		}
+		trackerBatch.active = false;
+		final int slot = trackerBatch.slot;
+		for (int i = 0; i < trackerBatch.touched.size(); i++) {
+			PlayerConnection connection = trackerBatch.touched.get(i);
+			java.util.List<Packet<?>> list = connection.trackerLists[slot];
+			connection.trackerLists[slot] = null;
+			connection.trackerListSizes[slot] = list.size();
+			connection.queuedPackets.add(list);
+		}
+		trackerBatch.touched.clear();
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void addQueued(Object queued, java.util.List<Packet<?>> to) {
+		if (queued instanceof java.util.List) {
+			to.addAll((java.util.List<Packet<?>>) queued);
+		} else {
+			to.add((Packet<?>) queued);
+		}
+	}
+
 	private final java.util.concurrent.atomic.AtomicBoolean drainScheduled = new java.util.concurrent.atomic.AtomicBoolean();
 	private final Runnable queueDrain = this::drainQueuedPackets;
 
 	private void drainQueuedPackets() {
 		drainScheduled.set(false);
 		final java.util.List<Packet<?>> batch = new java.util.ArrayList<>();
-		Packet<?> queued;
-		while ((queued = queuedPackets.poll()) != null) {
-			batch.add(queued);
+		Object queued;
+		// The queue only supports one consumer at a time; the lock is uncontended unless the packet listeners
+		// change while a drain is scheduled
+		synchronized (queuedPackets) {
+			while ((queued = queuedPackets.poll()) != null) {
+				addQueued(queued, batch);
+			}
 		}
 		if (!batch.isEmpty()) {
 			networkManager.handleBatch(batch);
@@ -2729,9 +2815,15 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 			}
 		}
 		final java.util.List<Packet<?>> batch = new java.util.ArrayList<>();
-		Packet<?> queued;
-		while ((queued = queuedPackets.poll()) != null) {
-			sendPacket(queued, batch);
+		final java.util.List<Packet<?>> polled = new java.util.ArrayList<>();
+		Object queued;
+		synchronized (queuedPackets) {
+			while ((queued = queuedPackets.poll()) != null) {
+				addQueued(queued, polled);
+			}
+			for (int i = 0; i < polled.size(); i++) {
+				sendPacket(polled.get(i), batch);
+			}
 		}
 		if (!batch.isEmpty()) {
 			networkManager.handleBatch(batch);
