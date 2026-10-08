@@ -65,6 +65,8 @@ Changes made on top of WindSpigot:
 - Block collisions with other entities only search the chunk sections that contain an entity with a collision box (boats and minecarts), instead of collecting every entity around; entities that collide with every entity (boats and minecarts) still do. Picking up items only searches the sections that contain an entity reacting to players (items, experience orbs, arrows, slimes).
 - Pushing between living entities is off by default and can be turned on per pair in `stackspigot.yml` (`settings.entity-collisions.player-player`, `player-mob` and `mob-mob`). When every pair an entity is part of is off, the search for entities to push is skipped. Boats and minecarts still push and get pushed. In the 300 bot test the median tick went from 6.9 ms to 5.6 ms, the allocation rate from 100 to 75 MB/s and the packets sent dropped by about a third; with mobs no difference was measured.
 - The packet id of each packet class is cached instead of looked up in the inverse of a `HashBiMap` for every packet encoded.
+- The inventory check that runs every tick for every player reads the slots of the player inventory and of the crafting grid from their arrays, instead of going through `Slot.getItem` and the inventory interface for every slot. Slots with their own `getItem` and other inventories are read as before (a test compares the result for every slot). In a microbenchmark with 600 player inventories, checking all of them went from 134 to 55 µs with empty inventories and from 135 to 108 µs with full ones; the difference is too small to show in the tick.
+- When the players around an entity start tracking it, the packets that show it (spawn, metadata, attributes, equipment, head rotation, effects) are built once per scan and queued as one entry for every player, instead of being built again for each player. Every player gets the same packets as before (checked with bots on zombies, skeletons, pigs, villagers, armor stands, arrows and items). Players are left out, because plugins often change the spawn packet of a player for each viewer. With 600 players around, spawning a zombie went from 0.46 to 0.22 ms at the median and from 0.97 to 0.25 ms at the 90th percentile.
 - In a test with 300 bots fighting in 6 groups of 50 (2 runs each, 4 GB heap), the server CPU went from about 613% to about 193% of a core, the median tick from 11.5 ms to 7.0 ms, the 99th percentile from 40 ms to 19 ms and the allocation rate from about 126 to 99 MB/s. With 120 bots and about 770 mobs at night the CPU went from about 140% to 84% of a core and the median tick from 6.3 ms to 5.6 ms; the allocation rate went up from 22 to 28 MB/s because the path searches now really run on the path search threads.
 
 **Dependencies**
@@ -73,19 +75,20 @@ Changes made on top of WindSpigot:
 Code written for StackSpigot is marked with `//StackSpigot-Code` and `//End-of-StackSpigot-Code` comments, see [NOTICE.md](NOTICE.md).
 
 ## Benchmarks
-StackSpigot against the WindSpigot it was forked from (commit 283c604) and against the latest WindSpigot (commit 088e94b), 3 alternating runs each, 600 players online, default configuration, no plugins other than a small test plugin, on the same machine (Java 27, 8 GB heap, Java Flight Recorder enabled on all of them). The tick times are measured inside the server (`ServerTickEndEvent`) over the 40 seconds after all players joined, about 800 ticks per run.
+StackSpigot 1.102.0 against the latest WindSpigot (commit 088e94b) and StackSpigot 1.101.0, 3 alternating runs each, 600 players online, default configuration, no plugins other than a small test plugin, on the same machine (Java 27, 8 GB heap, Java Flight Recorder enabled on all of them). The tick times are measured inside the server (`ServerTickEndEvent`) over the 40 seconds after all players joined, about 800 ticks per run.
 
-| | WindSpigot 283c604 | WindSpigot 088e94b | StackSpigot |
+| | WindSpigot 088e94b | StackSpigot 1.101.0 | StackSpigot 1.102.0 |
 |---|---|---|---|
-| Median tick | 4.60 ms | 3.28 ms | 1.84 ms |
-| 90th percentile tick | 14.39 ms | 8.25 ms | 2.98 ms |
-| 99th percentile tick | 36.65 ms | 18.26 ms | 5.57 ms |
-| Server CPU | 200% of a core | 150% of a core | 111% of a core |
-| Memory allocated | 20.6 GB | 20.9 GB | 7.2 GB |
-| Peak resident memory | 5786 MB | 5800 MB | 4546 MB |
-| Total GC pause | 71 ms | 64 ms | 42 ms |
+| Median tick | 2.99 ms | 2.04 ms | 1.70 ms |
+| 90th percentile tick | 8.25 ms | 4.02 ms | 3.04 ms |
+| 99th percentile tick | 17.44 ms | 7.75 ms | 5.80 ms |
+| Server CPU | 149% of a core | 118% of a core | 97% of a core |
+| Memory allocated | 21.0 GB | 7.2 GB | 6.9 GB |
+| Peak resident memory | 5831 MB | 4404 MB | 4420 MB |
+| Total GC pause | 71 ms | 41 ms | 41 ms |
+| Spawning a zombie near 600 players (median / 90th percentile) | 0.73 / 0.97 ms | 0.55 / 1.07 ms | 0.22 / 0.25 ms |
 
-The median tick of every StackSpigot run (1.78, 1.81 and 1.92 ms) was lower than the median tick of every run of both WindSpigot versions. The players are bots that walk around, not a real server with plugins, so treat the numbers as indicative. Ramping up to 1000 bots, both StackSpigot and the latest WindSpigot kept the server above 19 TPS (worst tick 28 ms against 33 ms). In a 40 bot combat test the CPU use was the same as before the latest changes. With `settings.async.knockback` enabled, WindSpigot 283c604 delivered only about a tenth of the knockback packets to the players that were hit (about 100 against about 800 on StackSpigot) because of the shared packet queue that StackSpigot fixes.
+The median tick of every StackSpigot 1.102.0 run (1.58, 1.74 and 1.75 ms) was lower than the median tick of every run of the other two. The spawn times come from 2 runs per version, 60 bursts of 10 zombies. With the default configuration StackSpigot 1.102.0 has pushing between living entities turned off; in a separate test of the same changes with it turned on, the CPU and the tick were the same within the variation between runs. The absolute numbers change between test sessions on the same machine (in an earlier session WindSpigot 088e94b had a median tick of 3.28 ms), so only compare numbers from the same table. The players are bots that walk around, not a real server with plugins, so treat the numbers as indicative. In earlier tests, ramping up to 1000 bots kept the server above 19 TPS, and with `settings.async.knockback` enabled the WindSpigot this fork started from (commit 283c604) delivered only about a tenth of the knockback packets to the players that were hit (about 100 against about 800 on StackSpigot) because of the shared packet queue that StackSpigot fixes.
 
 ## FAQ
 
@@ -136,6 +139,8 @@ The tags below (`WindSpigot-xxxx`, `Nacho-xxxx`, ...) identify the project each 
 [StackSpigot-0025] Cache packet ids per class
 [StackSpigot-0026] Fix the item count check, the tile entity skip and the compression re-setup
 [StackSpigot-0027] Configurable entity collisions, off by default
+[StackSpigot-0028] Read player and crafting slots from their arrays in the container sync
+[StackSpigot-0029] Build the spawn packets of an entity once per tracker scan
 
 [WindSpigot-0001] Thread affinity
 [WindSpigot-0002] WindSpigot config
