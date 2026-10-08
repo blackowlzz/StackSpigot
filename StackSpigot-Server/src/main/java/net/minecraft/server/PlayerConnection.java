@@ -2704,7 +2704,28 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
 		//End-of-StackSpigot-Code
 		queuedPackets.add(packet);
 	}
-	
+
+	//StackSpigot-Code
+	// Same as queuePacket for each packet. The list is queued as one entry, so it must not change afterwards and
+	// must not contain null.
+	public void queuePackets(java.util.List<Packet<?>> packets) {
+		if (packets.isEmpty()) {
+			return;
+		}
+		Thread thread = Thread.currentThread();
+		if (thread instanceof dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread) {
+			TrackerBatch trackerBatch = (TrackerBatch) ((dev.stackspigot.async.entitytracker.AsyncEntityTracker.TrackerThread) thread).trackerBatch;
+			if (trackerBatch != null && trackerBatch.active) {
+				for (int i = 0; i < packets.size(); i++) {
+					trackerBatch.add(this, packets.get(i));
+				}
+				return;
+			}
+		}
+		queuedPackets.add(packets);
+	}
+	//End-of-StackSpigot-Code
+
 	//StackSpigot-Code
 	// While an entity tracker thread updates its entries, the packets it queues are collected per connection and
 	// added to each connection queue as one list when it is done. All the tracker threads queue packets for the

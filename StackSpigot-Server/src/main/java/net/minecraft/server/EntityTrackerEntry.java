@@ -222,9 +222,25 @@ public class EntityTrackerEntry {
 		if (updateCooldown) {
 			this.addRemoveCooldown = addRemoveRate;
 		}
-		this.tracker.world.playerMap.forEachNearby(this.tracker.locX, this.tracker.locY, this.tracker.locZ,
-				this.getRange(), false, addNearPlayersConsumer);
+		//StackSpigot-Code
+		// The entity does not change during the scan, so the packets that show it to a new viewer are built once and
+		// queued for every player that starts tracking it. Players are left out because plugins often edit the
+		// spawn packet of a player for each viewer.
+		this.scanSharesSpawnPackets = !(this.tracker instanceof EntityPlayer);
+		try {
+			this.tracker.world.playerMap.forEachNearby(this.tracker.locX, this.tracker.locY, this.tracker.locZ,
+					this.getRange(), false, addNearPlayersConsumer);
+		} finally {
+			this.scanSharesSpawnPackets = false;
+			this.scanSpawnPackets = null;
+		}
+		//End-of-StackSpigot-Code
 	}
+
+	//StackSpigot-Code
+	private boolean scanSharesSpawnPackets;
+	private List<Packet<?>> scanSpawnPackets;
+	//End-of-StackSpigot-Code
 
 	private boolean withinNoTrack() {
 		return this.withinNoTrack(this.tracker);
@@ -564,103 +580,19 @@ public class EntityTrackerEntry {
 					// entityplayer.removeQueue.remove(Integer.valueOf(this.tracker.getId()));
 					// CraftBukkit end
 					this.trackedPlayerMap.put(entityplayer, true); // PaperBukkit
-					Packet packet = this.c();
-
-					entityplayer.playerConnection.queuePacket(packet);
-					if (!this.tracker.getDataWatcher().d()) {
-						entityplayer.playerConnection.queuePacket(new PacketPlayOutEntityMetadata(this.tracker.getId(),
-								this.tracker.getDataWatcher(), true));
-					}
-
-					NBTTagCompound nbttagcompound = this.tracker.getNBTTag();
-
-					if (nbttagcompound != null) {
-						entityplayer.playerConnection
-								.queuePacket(new PacketPlayOutUpdateEntityNBT(this.tracker.getId(), nbttagcompound));
-					}
-
-					if (this.tracker instanceof EntityLiving) {
-						AttributeMapServer attributemapserver = (AttributeMapServer) ((EntityLiving) this.tracker)
-								.getAttributeMap();
-						Collection<AttributeInstance> collection = attributemapserver.c();
-
-						// CraftBukkit start - If sending own attributes send scaled health instead of
-						// current maximum health
-						if (this.tracker.getId() == entityplayer.getId()) {
-							((EntityPlayer) this.tracker).getBukkitEntity().injectScaledMaxHealth(collection, false);
+					//StackSpigot-Code
+					List<Packet<?>> spawnPackets;
+					if (this.scanSharesSpawnPackets) {
+						spawnPackets = this.scanSpawnPackets;
+						if (spawnPackets == null) {
+							spawnPackets = this.spawnPackets(entityplayer);
+							this.scanSpawnPackets = spawnPackets;
 						}
-						// CraftBukkit end
-
-						if (!collection.isEmpty()) {
-							entityplayer.playerConnection
-									.queuePacket(new PacketPlayOutUpdateAttributes(this.tracker.getId(), collection));
-						}
+					} else {
+						spawnPackets = this.spawnPackets(entityplayer);
 					}
-
-					this.motionX = this.tracker.motX;
-					this.motionY = this.tracker.motY;
-					this.motionZ = this.tracker.motZ;
-
-					if (this.u && !(packet instanceof PacketPlayOutSpawnEntityLiving)) {
-						entityplayer.playerConnection.queuePacket(new PacketPlayOutEntityVelocity(this.tracker.getId(),
-								this.tracker.motX, this.tracker.motY, this.tracker.motZ));
-					}
-
-					if (this.tracker.vehicle != null) {
-						entityplayer.playerConnection
-								.queuePacket(new PacketPlayOutAttachEntity(0, this.tracker, this.tracker.vehicle));
-					}
-
-					if (this.tracker instanceof EntityInsentient
-							&& ((EntityInsentient) this.tracker).getLeashHolder() != null) {
-						entityplayer.playerConnection.queuePacket(new PacketPlayOutAttachEntity(1, this.tracker,
-								((EntityInsentient) this.tracker).getLeashHolder()));
-					}
-
-					if (this.tracker instanceof EntityLiving) {
-						for (int i = 0; i < 5; ++i) {
-							ItemStack itemstack = ((EntityLiving) this.tracker).getEquipment(i);
-							if (itemstack != null) {
-								entityplayer.playerConnection.queuePacket(
-										new PacketPlayOutEntityEquipment(this.tracker.getId(), i, itemstack));
-							}
-						}
-					}
-
-					if (this.tracker instanceof EntityHuman) {
-						EntityHuman entityhuman = (EntityHuman) this.tracker;
-						if (entityhuman.isSleeping()) {
-							entityplayer.playerConnection
-									.queuePacket(new PacketPlayOutBed(entityhuman, new BlockPosition(this.tracker)));
-						}
-					}
-
-					// CraftBukkit start - Fix for nonsensical head yaw
-					if (this.tracker instanceof EntityLiving) { // SportPaper - avoid processing entities that can't
-																// change head rotation
-						this.lastHeadYaw = MathHelper.d(this.tracker.getHeadRotation() * 256.0F / 360.0F);
-						// SportPaper start
-						// This was originally introduced by CraftBukkit, though the implementation is
-						// wrong since it's broadcasting
-						// the packet again in a method that is already called for each player. This
-						// would create a very serious performance issue
-						// with high player and entity counts (each sendPacket call involves waking up
-						// the event loop and flushing the network stream).
-						// this.broadcast(new PacketPlayOutEntityHeadRotation(this.tracker, (byte)
-						// lastHeadYaw));
-						entityplayer.playerConnection
-								.queuePacket(new PacketPlayOutEntityHeadRotation(this.tracker, (byte) lastHeadYaw));
-						// SportPaper end
-					}
-					// CraftBukkit end
-
-					if (this.tracker instanceof EntityLiving) {
-						EntityLiving entityliving = (EntityLiving) this.tracker;
-						for (MobEffect mobeffect : entityliving.getEffects()) {
-							entityplayer.playerConnection
-									.queuePacket(new PacketPlayOutEntityEffect(this.tracker.getId(), mobeffect));
-						}
-					}
+					entityplayer.playerConnection.queuePackets(spawnPackets);
+					//End-of-StackSpigot-Code
 				}
 			} else if (isPlayerEntityTracked) {
 				this.trackedPlayers.remove(entityplayer);
@@ -669,6 +601,112 @@ public class EntityTrackerEntry {
 
 		}
 	}
+
+	//StackSpigot-Code
+	// The packets that show the entity to a player that starts tracking it. They only depend on the entity, except
+	// for the scaled health of a player seeing itself, which updatePlayer never does.
+	private List<Packet<?>> spawnPackets(EntityPlayer entityplayer) {
+		final List<Packet<?>> packets = new ArrayList<>();
+		Packet packet = this.c();
+
+		addSpawnPacket(packets, packet);
+		if (!this.tracker.getDataWatcher().d()) {
+			addSpawnPacket(packets, new PacketPlayOutEntityMetadata(this.tracker.getId(),
+					this.tracker.getDataWatcher(), true));
+		}
+
+		NBTTagCompound nbttagcompound = this.tracker.getNBTTag();
+
+		if (nbttagcompound != null) {
+			addSpawnPacket(packets, new PacketPlayOutUpdateEntityNBT(this.tracker.getId(), nbttagcompound));
+		}
+
+		if (this.tracker instanceof EntityLiving) {
+			AttributeMapServer attributemapserver = (AttributeMapServer) ((EntityLiving) this.tracker)
+					.getAttributeMap();
+			Collection<AttributeInstance> collection = attributemapserver.c();
+
+			// CraftBukkit start - If sending own attributes send scaled health instead of
+			// current maximum health
+			if (this.tracker.getId() == entityplayer.getId()) {
+				((EntityPlayer) this.tracker).getBukkitEntity().injectScaledMaxHealth(collection, false);
+			}
+			// CraftBukkit end
+
+			if (!collection.isEmpty()) {
+				addSpawnPacket(packets, new PacketPlayOutUpdateAttributes(this.tracker.getId(), collection));
+			}
+		}
+
+		this.motionX = this.tracker.motX;
+		this.motionY = this.tracker.motY;
+		this.motionZ = this.tracker.motZ;
+
+		if (this.u && !(packet instanceof PacketPlayOutSpawnEntityLiving)) {
+			addSpawnPacket(packets, new PacketPlayOutEntityVelocity(this.tracker.getId(),
+					this.tracker.motX, this.tracker.motY, this.tracker.motZ));
+		}
+
+		if (this.tracker.vehicle != null) {
+			addSpawnPacket(packets, new PacketPlayOutAttachEntity(0, this.tracker, this.tracker.vehicle));
+		}
+
+		if (this.tracker instanceof EntityInsentient
+				&& ((EntityInsentient) this.tracker).getLeashHolder() != null) {
+			addSpawnPacket(packets, new PacketPlayOutAttachEntity(1, this.tracker,
+					((EntityInsentient) this.tracker).getLeashHolder()));
+		}
+
+		if (this.tracker instanceof EntityLiving) {
+			for (int i = 0; i < 5; ++i) {
+				ItemStack itemstack = ((EntityLiving) this.tracker).getEquipment(i);
+				if (itemstack != null) {
+					addSpawnPacket(packets, new PacketPlayOutEntityEquipment(this.tracker.getId(), i, itemstack));
+				}
+			}
+		}
+
+		if (this.tracker instanceof EntityHuman) {
+			EntityHuman entityhuman = (EntityHuman) this.tracker;
+			if (entityhuman.isSleeping()) {
+				addSpawnPacket(packets, new PacketPlayOutBed(entityhuman, new BlockPosition(this.tracker)));
+			}
+		}
+
+		// CraftBukkit start - Fix for nonsensical head yaw
+		if (this.tracker instanceof EntityLiving) { // SportPaper - avoid processing entities that can't
+													// change head rotation
+			this.lastHeadYaw = MathHelper.d(this.tracker.getHeadRotation() * 256.0F / 360.0F);
+			// SportPaper start
+			// This was originally introduced by CraftBukkit, though the implementation is
+			// wrong since it's broadcasting
+			// the packet again in a method that is already called for each player. This
+			// would create a very serious performance issue
+			// with high player and entity counts (each sendPacket call involves waking up
+			// the event loop and flushing the network stream).
+			// this.broadcast(new PacketPlayOutEntityHeadRotation(this.tracker, (byte)
+			// lastHeadYaw));
+			addSpawnPacket(packets, new PacketPlayOutEntityHeadRotation(this.tracker, (byte) lastHeadYaw));
+			// SportPaper end
+		}
+		// CraftBukkit end
+
+		if (this.tracker instanceof EntityLiving) {
+			EntityLiving entityliving = (EntityLiving) this.tracker;
+			for (MobEffect mobeffect : entityliving.getEffects()) {
+				addSpawnPacket(packets, new PacketPlayOutEntityEffect(this.tracker.getId(), mobeffect));
+			}
+		}
+
+		return packets;
+	}
+
+	private static void addSpawnPacket(List<Packet<?>> packets, Packet<?> packet) {
+		if (packet != null) {
+			packets.add(packet);
+		}
+	}
+	//End-of-StackSpigot-Code
 
 	public boolean c(EntityPlayer entityplayer) {
 		// CraftBukkit start - this.*Loc / 30 -> this.tracker.loc*
